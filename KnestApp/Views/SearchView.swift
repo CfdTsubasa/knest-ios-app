@@ -12,6 +12,7 @@ struct SearchView: View {
     @State private var selectedMode: SearchMode = .passive
     @State private var searchText = ""
     @State private var showingFilters = false
+    @Binding var selectedTab: Int
     
     var body: some View {
         NavigationView {
@@ -23,9 +24,9 @@ struct SearchView: View {
                 // 選択されたモードの内容
                 switch selectedMode {
                 case .active:
-                    ActiveSearchView(searchText: $searchText, showingFilters: $showingFilters)
+                    ActiveSearchView(searchText: $searchText, showingFilters: $showingFilters, selectedTab: $selectedTab)
                 case .passive:
-                    PassiveRecommendationView()
+                    PassiveRecommendationView(selectedTab: $selectedTab)
                 case .creation:
                     CreationSuggestionView()
                 }
@@ -78,7 +79,7 @@ struct ModeSelector: View {
             }
         }
         .padding(4)
-        .background(Color(UIColor.systemGray6))
+        .background(Color.gray.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
@@ -89,6 +90,7 @@ struct ActiveSearchView: View {
     @EnvironmentObject var matchingManager: MatchingManager
     @Binding var searchText: String
     @Binding var showingFilters: Bool
+    @Binding var selectedTab: Int
     @State private var sortOption: SortOption = .popular
     @State private var selectedFilters: SearchFilters = SearchFilters()
     
@@ -147,7 +149,7 @@ struct ActiveSearchView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(Color(UIColor.systemGray6))
+                    .background(Color.gray.opacity(0.1))
                     .foregroundColor(.primary)
                     .clipShape(Capsule())
                 }
@@ -162,7 +164,7 @@ struct ActiveSearchView: View {
                 EmptySearchResultView()
             } else {
                 List(matchingManager.circleMatches) { match in
-                    NavigationLink(destination: CircleDetailView(circle: match.circle)) {
+                    NavigationLink(destination: CircleDetailView(circle: match.circle, selectedTab: $selectedTab)) {
                         ActiveSearchResultRow(match: match)
                     }
                 }
@@ -182,12 +184,25 @@ struct ActiveSearchView: View {
     }
     
     private func performSearch() {
-        let filters = selectedFilters.toDictionary()
+        var filters = selectedFilters.toDictionary()
+        
+        // ソートオプションをorderingパラメータに変換
+        switch sortOption {
+        case .popular:
+            filters["ordering"] = "-member_count"
+        case .recent:
+            filters["ordering"] = "-last_activity"
+        case .newest:
+            filters["ordering"] = "-created_at"
+        case .memberCount:
+            filters["ordering"] = "-member_count"
+        }
+        
         matchingManager.searchCircles(query: searchText, filters: filters)
     }
     
     private func loadPopularCircles() {
-        matchingManager.searchCircles(query: "", filters: ["sort": "popular"])
+        matchingManager.searchCircles(query: "", filters: ["ordering": "-member_count"])
     }
 }
 
@@ -214,7 +229,7 @@ struct SearchBar: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color(UIColor.systemGray6))
+        .background(Color.gray.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding(.horizontal)
     }
@@ -276,22 +291,25 @@ struct ActiveSearchResultRow: View {
 
 struct PassiveRecommendationView: View {
     @EnvironmentObject var matchingManager: MatchingManager
+    @Binding var selectedTab: Int
     
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
-                // ヘッダー
-                VStack(spacing: 8) {
-                    Text("あなたにおすすめ")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Text("興味関心・年齢・居住地から\nぴったりのサークルを見つけました")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
+                // ヘッダー（おすすめサークルがある場合のみ表示）
+                if !matchingManager.isLoading && !matchingManager.recommendedCircles.isEmpty {
+                    VStack(spacing: 8) {
+                        Text("あなたにおすすめ")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("興味関心・年齢・居住地から\nぴったりのサークルを見つけました")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding()
                 }
-                .padding()
                 
                 if matchingManager.isLoading {
                     ProgressView("おすすめを計算中...")
@@ -300,7 +318,7 @@ struct PassiveRecommendationView: View {
                     EmptyRecommendationView()
                 } else {
                     ForEach(matchingManager.recommendedCircles) { match in
-                        NavigationLink(destination: CircleDetailView(circle: match.circle)) {
+                        NavigationLink(destination: CircleDetailView(circle: match.circle, selectedTab: $selectedTab)) {
                             RecommendationCard(match: match)
                         }
                         .buttonStyle(PlainButtonStyle())
@@ -310,10 +328,10 @@ struct PassiveRecommendationView: View {
             .padding(.horizontal)
         }
         .onAppear {
-            matchingManager.loadRecommendedCircles()
+            matchingManager.getRecommendedCircles()
         }
         .refreshable {
-            matchingManager.loadRecommendedCircles()
+            matchingManager.getRecommendedCircles()
         }
     }
 }
@@ -420,29 +438,43 @@ struct CreationSuggestionView: View {
     @EnvironmentObject var matchingManager: MatchingManager
     @State private var showingCreateCircle = false
     
+    // 70%以上の類似度を持つユーザー
+    var highMatchUsers: [UserMatch] {
+        matchingManager.userMatches.filter { $0.score.totalScore >= 0.7 }
+    }
+    
+    // その他のユーザー
+    var otherUsers: [UserMatch] {
+        matchingManager.userMatches.filter { $0.score.totalScore < 0.7 }
+    }
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // ヘッダー
+                // ヘッダー（電球アイコン削除、「あなたと似た〜」文言削除）
                 VStack(spacing: 12) {
-                    Image(systemName: "lightbulb.fill")
-                        .font(.system(size: 50))
-                        .foregroundColor(.orange)
-                    
                     Text("サークルを作ってみませんか？")
                         .font(.title2)
                         .fontWeight(.bold)
-                    
-                    Text("あなたと似た興味を持つ人たちが\nサークルを待っています")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
                 }
                 .padding()
                 
-                // 類似ユーザー統計
+                // 類似ユーザー統計（70%以上のユーザー数を表示）
                 if !matchingManager.userMatches.isEmpty {
                     SimilarUsersCard(matches: matchingManager.userMatches)
+                }
+                
+                // 70%以上の類似度ユーザーセクション
+                if !highMatchUsers.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("高い類似度のユーザー（70%以上）")
+                            .font(.headline)
+                            .padding(.horizontal)
+                        
+                        ForEach(highMatchUsers) { match in
+                            HighSimilarityUserRow(match: match)
+                        }
+                    }
                 }
                 
                 // 作成提案カード
@@ -450,14 +482,14 @@ struct CreationSuggestionView: View {
                     showingCreateCircle = true
                 }
                 
-                // 類似ユーザー一覧
-                if !matchingManager.userMatches.isEmpty {
+                // その他のユーザー一覧
+                if !otherUsers.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("あなたと似た人たち")
+                        Text("その他のユーザー")
                             .font(.headline)
                             .padding(.horizontal)
                         
-                        ForEach(matchingManager.userMatches.prefix(5)) { match in
+                        ForEach(otherUsers.prefix(5)) { match in
                             SimilarUserRow(match: match)
                         }
                     }
@@ -471,6 +503,73 @@ struct CreationSuggestionView: View {
         .sheet(isPresented: $showingCreateCircle) {
             CreateCircleView()
         }
+    }
+}
+
+// MARK: - 高い類似度ユーザー専用行
+struct HighSimilarityUserRow: View {
+    let match: UserMatch
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            AsyncImage(url: URL(string: match.user.avatarUrl ?? "")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                SwiftUI.Circle()
+                    .fill(Color.orange.opacity(0.3))
+                    .overlay(
+                        Image(systemName: "person.fill")
+                            .foregroundColor(.orange)
+                    )
+            }
+            .frame(width: 50, height: 50)
+            .clipShape(SwiftUI.Circle())
+            .overlay(
+                SwiftUI.Circle()
+                    .stroke(Color.orange, lineWidth: 2)
+            )
+            
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(match.user.displayName ?? match.user.username)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    
+                    Spacer()
+                    
+                    Text("\(Int(match.score.totalScore * 100))%")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.orange)
+                }
+                
+                if !match.score.commonInterests.isEmpty {
+                    Text("共通: \(match.score.commonInterests.prefix(3).joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            
+            Image(systemName: "star.fill")
+                .font(.title3)
+                .foregroundColor(.orange)
+        }
+        .padding(16)
+        .background(
+            LinearGradient(
+                colors: [Color.orange.opacity(0.1), Color.yellow.opacity(0.05)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 
@@ -518,35 +617,66 @@ struct CreateCircleSuggestionCard: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 16) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 60))
+            HStack(spacing: 16) {
+                // アイコン部分
+                ZStack {
+                    SwiftUI.Circle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [.blue.opacity(0.8), .purple.opacity(0.8)]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 50, height: 50)
+                    
+                    Image(systemName: "plus")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.white)
+                }
+                
+                // テキスト部分
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("新しいサークルを作成")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                    
+                    Text("興味に合った仲間を集めよう")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                // 矢印アイコン
+                Image(systemName: "arrow.right.circle.fill")
+                    .font(.system(size: 24))
                     .foregroundColor(.blue)
-                
-                Text("新しいサークルを作成")
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(.primary)
-                
-                Text("あなたの興味に合った\nサークルを立ち上げて\n仲間を集めましょう")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                
-                Text("サークル作成")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .padding()
-            .background(Color(UIColor.systemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.systemBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [.blue.opacity(0.3), .purple.opacity(0.3)]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.5
+                            )
+                    )
+            )
+            .shadow(color: Color.blue.opacity(0.1), radius: 8, x: 0, y: 4)
         }
         .buttonStyle(PlainButtonStyle())
+        .scaleEffect(1.0)
+        .animation(.easeInOut(duration: 0.1), value: false)
     }
 }
 
@@ -594,7 +724,7 @@ struct SimilarUserRow: View {
                 .foregroundColor(.secondary)
         }
         .padding()
-        .background(Color(UIColor.systemGray6))
+        .background(Color.gray.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -693,35 +823,6 @@ struct EmptySearchResultView: View {
     }
 }
 
-struct EmptyRecommendationView: View {
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "heart")
-                .font(.system(size: 60))
-                .foregroundColor(.gray)
-            
-            Text("おすすめを準備中")
-                .font(.headline)
-                .foregroundColor(.primary)
-            
-            Text("興味関心を登録すると\nぴったりのサークルをおすすめします")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-            
-            NavigationLink(destination: HierarchicalInterestSelectionView()) {
-                Text("興味関心を登録")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.blue)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-        }
-        .frame(height: 300)
-    }
-}
-
 // MARK: - フィルター設定画面
 
 struct SearchFiltersView: View {
@@ -763,7 +864,7 @@ struct SearchFiltersView: View {
                 }
             }
             .navigationTitle("検索フィルター")
-            .navigationBarTitleDisplayMode(.inline)
+            
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("キャンセル") {
@@ -783,6 +884,6 @@ struct SearchFiltersView: View {
 }
 
 #Preview {
-    SearchView()
+    SearchView(selectedTab: .constant(0))
         .environmentObject(MatchingManager())
 } 

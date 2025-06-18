@@ -38,7 +38,6 @@ struct LoginView: View {
                 VStack(spacing: 16) {
                     TextField("ユーザー名", text: $username)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .autocapitalization(.none)
                         .disableAutocorrection(true)
                     
                     SecureField("パスワード", text: $password)
@@ -65,6 +64,30 @@ struct LoginView: View {
                         .cornerRadius(10)
                     }
                     .disabled(authManager.isLoading || username.isEmpty || password.isEmpty)
+                    
+                    // テストユーザー作成ボタン
+                    Button(action: createTestUser) {
+                        HStack {
+                            if authManager.isLoading {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "flask")
+                            }
+                            Text("テストユーザーで始める")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.orange.opacity(0.8))
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                    }
+                    .disabled(authManager.isLoading)
+                    
+                    Text("※ テストユーザーはランダムに生成されます")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 4)
                 }
                 .padding(.horizontal, 32)
                 
@@ -83,7 +106,6 @@ struct LoginView: View {
                     .foregroundColor(.blue)
                 }
             }
-            .navigationBarHidden(true)
         }
         .sheet(isPresented: $showingRegister) {
             RegisterView()
@@ -92,6 +114,10 @@ struct LoginView: View {
     
     private func login() {
         authManager.login(username: username, password: password)
+    }
+    
+    private func createTestUser() {
+        authManager.createTestUser()
     }
 }
 

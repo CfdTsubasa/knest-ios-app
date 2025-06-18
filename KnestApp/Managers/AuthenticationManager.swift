@@ -140,6 +140,50 @@ class AuthenticationManager: ObservableObject {
         return currentUser?.id
     }
     
+    // MARK: - Token Access
+    
+    func getAccessToken() -> String? {
+        return accessToken
+    }
+    
+    // MARK: - Test User Creation
+    
+    func createTestUser() {
+        isLoading = true
+        errorMessage = nil
+        
+        // ランダムなテストユーザー情報を生成
+        let randomNumber = Int.random(in: 1000...9999)
+        let testUsername = "testuser\(randomNumber)"
+        let testEmail = "test\(randomNumber)@example.com"
+        let testPassword = "testpass123"
+        let testDisplayName = "テストユーザー\(randomNumber)"
+        
+        let request = RegisterRequest(
+            username: testUsername,
+            email: testEmail,
+            password: testPassword,
+            password2: testPassword,
+            displayName: testDisplayName,
+            birthDate: nil,
+            prefecture: nil
+        )
+        
+        networkManager.register(request: request)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    self?.isLoading = false
+                    if case .failure(let error) = completion {
+                        self?.errorMessage = "テストユーザーの作成に失敗しました: \(error.localizedDescription)"
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    self?.handleLoginResponse(response)
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
     // MARK: - Private Methods
     
     private func handleLoginResponse(_ response: LoginResponse) {

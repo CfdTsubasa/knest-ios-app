@@ -59,16 +59,22 @@ struct ProfileView: View {
         }
         .onAppear {
             interestManager.loadUserInterests()
-            hierarchicalInterestManager.loadUserInterestProfiles()
+            hierarchicalInterestManager.loadUserProfiles()
             hashtagManager.loadUserTags()
         }
-        .sheet(isPresented: $showingInterestSelection) {
+        .sheet(isPresented: $showingInterestSelection, onDismiss: {
+            interestManager.loadUserInterests()
+        }) {
             InterestSelectionView()
         }
-        .sheet(isPresented: $showingHierarchicalInterestSelection) {
+        .sheet(isPresented: $showingHierarchicalInterestSelection, onDismiss: {
+            hierarchicalInterestManager.loadUserProfiles()
+        }) {
             HierarchicalInterestSelectionView()
         }
-        .sheet(isPresented: $showingHashtagSelection) {
+        .sheet(isPresented: $showingHashtagSelection, onDismiss: {
+            hashtagManager.loadUserTags()
+        }) {
             HashtagSelectionView()
         }
         .sheet(isPresented: $showingSettings) {
@@ -87,9 +93,10 @@ struct ProfileView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } placeholder: {
-                Image(systemName: "person.circle.fill")
-                    .font(.system(size: 80))
+                SwiftUI.Circle()
                     .foregroundColor(.gray)
+                    .frame(width: 40, height: 40)
+                    .clipShape(SwiftUI.Circle())
             }
             .frame(width: 100, height: 100)
             .clipShape(SwiftUI.Circle())
@@ -247,13 +254,14 @@ struct ProfileView: View {
                 .padding(.vertical, 20)
             } else {
                 LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: 8) {
+                    GridItem(.flexible(), spacing: 12),
+                    GridItem(.flexible(), spacing: 12)
+                ], spacing: 16) {
                     ForEach(hierarchicalInterestManager.userProfiles) { profile in
                         HierarchicalInterestChip(profile: profile)
                     }
                 }
+                .padding(.horizontal, 4)
             }
         }
         .padding()
@@ -348,7 +356,7 @@ struct ProfileView: View {
             
             if hashtagManager.userTags.isEmpty {
                 VStack(spacing: 8) {
-                    Image(systemName: "hashtag.circle")
+                    Image(systemName: "number.circle")
                         .font(.system(size: 40))
                         .foregroundColor(.gray)
                     
@@ -589,27 +597,91 @@ struct SettingsView: View {
 // 新しい階層的興味関心チップコンポーネント
 struct HierarchicalInterestChip: View {
     let profile: UserInterestProfile
+    @State private var isAnimating = false
+    
+    private var displayText: String {
+        if let tag = profile.tag {
+            return tag.name
+        } else if let subcategory = profile.subcategory {
+            return subcategory.name
+        } else if let category = profile.category {
+            return category.name
+        }
+        return "Unknown"
+    }
+    
+    private var levelInfo: (icon: String, colors: [Color], title: String) {
+        if profile.tag != nil {
+            return ("tag.fill", [.purple, .pink], "タグ")
+        } else if profile.subcategory != nil {
+            return ("folder.badge.plus", [.green, .mint], "サブカテゴリ")
+        } else if profile.category != nil {
+            return ("folder.fill", [.blue, .cyan], "カテゴリ")
+        }
+        return ("questionmark.circle", [.gray, .secondary], "不明")
+    }
     
     var body: some View {
-        HStack(spacing: 4) {
-            Text(profile.tag?.name ?? "Unknown Tag")
-                .font(.caption)
-                .fontWeight(.medium)
+        VStack(spacing: 8) {
+            // レベルアイコン（上部固定）
+            ZStack {
+                SwiftUI.Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: levelInfo.colors,
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 32, height: 32)
+                    .shadow(color: levelInfo.colors[0].opacity(0.3), radius: 3, x: 0, y: 2)
+                
+                Image(systemName: levelInfo.icon)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+            }
+            .scaleEffect(isAnimating ? 1.1 : 1.0)
+            .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: isAnimating)
             
-            // 強度インジケーター
-            HStack(spacing: 2) {
-                ForEach(1...5, id: \.self) { level in
-                    SwiftUI.Circle()
-                        .fill(level <= profile.intensity ? Color.purple : Color.gray.opacity(0.3))
-                        .frame(width: 4, height: 4)
-                }
+            // テキスト情報（中央固定）
+            VStack(spacing: 4) {
+                Text(displayText)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .frame(height: 32) // 固定高さ（2行分）
+                
+                Text(levelInfo.title)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .frame(height: 16) // 固定高さ
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Color.purple.opacity(0.1))
-        .foregroundColor(.purple)
-        .cornerRadius(12)
+        .frame(width: 120, height: 100) // 固定サイズ
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: levelInfo.colors[0].opacity(0.1), radius: 4, x: 0, y: 2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    LinearGradient(
+                        colors: levelInfo.colors.map { $0.opacity(0.3) },
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+        )
+        .onAppear {
+            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                isAnimating = true
+            }
+        }
     }
 }
 

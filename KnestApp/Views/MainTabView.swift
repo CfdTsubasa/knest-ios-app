@@ -9,36 +9,43 @@ import SwiftUI
 
 struct MainTabView: View {
     @EnvironmentObject var authManager: AuthenticationManager
+    @State private var selectedTab = 0
     
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             // ホーム
-            HomeView()
+            HomeView(selectedTab: $selectedTab)
                 .tabItem {
                     Image(systemName: "house.fill")
                     Text("ホーム")
                 }
+                .tag(0)
             
             // 検索 (新機能)
-            SearchView()
+            SearchView(selectedTab: $selectedTab)
                 .tabItem {
                     Image(systemName: "magnifyingglass")
                     Text("検索")
                 }
+                .tag(1)
             
-            // サークル
+            // サークル - 一時的に非表示
+            /*
             CirclesView()
                 .tabItem {
                     Image(systemName: "person.3.fill")
                     Text("サークル")
                 }
+                .tag(2)
+            */
             
             // 参加中サークル
-            MyCirclesTabView()
+            MyCirclesTabView(selectedTab: $selectedTab)
                 .tabItem {
                     Image(systemName: "person.2.fill")
                     Text("参加中")
                 }
+                .tag(2)
             
             // プロフィール
             ProfileView()
@@ -46,12 +53,17 @@ struct MainTabView: View {
                     Image(systemName: "person.fill")
                     Text("プロフィール")
                 }
+                .tag(3)
         }
         .accentColor(.blue)
     }
 }
 
 struct HomeView: View {
+    @Binding var selectedTab: Int
+    @StateObject private var interestManager = InterestManager()
+    @StateObject private var hierarchicalInterestManager = HierarchicalInterestManager()
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
@@ -69,8 +81,36 @@ struct HomeView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
                 
+                // 興味関心未設定時の特別なキャプション
+                if interestManager.userInterests.isEmpty && hierarchicalInterestManager.userProfiles.isEmpty {
+                    VStack(spacing: 12) {
+                        HStack {
+                            Image(systemName: "lightbulb.fill")
+                                .foregroundColor(.yellow)
+                            
+                            Text("まず興味関心を設定しませんか？")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+                        }
+                        .padding()
+                        .background(Color.yellow.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.yellow.opacity(0.3), lineWidth: 1)
+                        )
+                        
+                        Text("あなたの興味関心を設定すると、AIがぴったりのサークルとメンバーを見つけます")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 16)
+                    }
+                }
+                
                 VStack(spacing: 12) {
-                    NavigationLink(destination: SearchView()) {
+                    NavigationLink(destination: SearchView(selectedTab: $selectedTab)) {
                         FeatureCardView(
                             icon: "magnifyingglass",
                             title: "スマート検索",
@@ -99,7 +139,7 @@ struct HomeView: View {
                     
                     NavigationLink(destination: HashtagSelectionView()) {
                         FeatureCardView(
-                            icon: "hashtag",
+                            icon: "number",
                             title: "ハッシュタグ登録",
                             description: "あなたの興味をハッシュタグで表現しよう",
                             color: .green
@@ -112,6 +152,10 @@ struct HomeView: View {
             }
             .padding()
             .navigationTitle("ホーム")
+        }
+        .onAppear {
+            interestManager.loadUserInterests()
+            hierarchicalInterestManager.loadUserProfiles()
         }
     }
 }
@@ -148,7 +192,7 @@ struct FeatureCardView: View {
                 .foregroundColor(.secondary)
         }
         .padding()
-        .background(Color(UIColor.systemGray6))
+        .background(Color.gray.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -156,6 +200,7 @@ struct FeatureCardView: View {
 // MARK: - My Circles Tab View
 struct MyCirclesTabView: View {
     @ObservedObject private var circleManager = CircleManager.shared
+    @Binding var selectedTab: Int
     
     var body: some View {
         NavigationView {
@@ -192,7 +237,7 @@ struct MyCirclesTabView: View {
                     Spacer()
                 } else {
                     List(circleManager.myCircles) { circle in
-                        NavigationLink(destination: CircleChatView(circle: circle, circleManager: circleManager)) {
+                        NavigationLink(destination: CircleChatView(circle: circle, circleManager: circleManager, selectedTab: $selectedTab)) {
                             MyCircleRowView(circle: circle)
                         }
                     }
@@ -200,7 +245,7 @@ struct MyCirclesTabView: View {
             }
             .navigationTitle("参加中のサークル")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .automatic) {
                     NavigationLink(destination: CirclesView()) {
                         Image(systemName: "plus")
                     }
@@ -245,15 +290,6 @@ struct MyCircleRowView: View {
                         .lineLimit(1)
                     
                     Spacer()
-                    
-                    // 参加中バッジ
-                    Text("参加中")
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(Color.green)
-                        .foregroundColor(.white)
-                        .clipShape(Capsule())
                 }
                 
                 Text(circle.description)

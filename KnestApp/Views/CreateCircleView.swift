@@ -106,9 +106,9 @@ struct CreateCircleView: View {
         let request = CreateCircleRequest(
             name: name,
             description: description,
-            isPremium: nil, // プレミアム機能は現在未実装
-            memberLimit: hasMemberLimit ? memberLimit : nil,
-            isPrivate: circleType == .private,
+            status: .open,
+            maxMembers: hasMemberLimit ? memberLimit : nil,
+            tags: tags,
             interests: [] // TODO: 興味選択機能実装時に対応
         )
         

@@ -28,7 +28,7 @@ struct InterestCategory: Codable, Identifiable, Hashable {
 /// 興味関心サブカテゴリ（第2階層）
 struct InterestSubcategory: Codable, Identifiable, Hashable {
     let id: String
-    let category: String // カテゴリID
+    let category: InterestCategory // カテゴリオブジェクト
     let name: String
     let description: String
     let createdAt: String
@@ -42,7 +42,7 @@ struct InterestSubcategory: Codable, Identifiable, Hashable {
 /// 興味関心タグ（第3階層）
 struct InterestTag: Codable, Identifiable, Hashable {
     let id: String
-    let subcategory: String // サブカテゴリID
+    let subcategory: InterestSubcategory // サブカテゴリオブジェクト
     let name: String
     let description: String
     let usageCount: Int
@@ -62,11 +62,10 @@ struct UserInterestProfile: Codable, Identifiable {
     let category: InterestCategory?
     let subcategory: InterestSubcategory?
     let tag: InterestTag?
-    let intensity: Int // 1-5の強度
     let addedAt: String
     
     enum CodingKeys: String, CodingKey {
-        case id, user, category, subcategory, tag, intensity
+        case id, user, category, subcategory, tag
         case addedAt = "added_at"
     }
 }
@@ -80,6 +79,7 @@ struct MatchingScore: Codable {
     let locationScore: Double
     let ageScore: Double
     let commonInterests: [String] // 共通の興味関心
+    let hierarchicalDetails: HierarchicalMatchDetails? // 階層レベル詳細
     
     enum CodingKeys: String, CodingKey {
         case totalScore = "total_score"
@@ -87,6 +87,54 @@ struct MatchingScore: Codable {
         case locationScore = "location_score"
         case ageScore = "age_score"
         case commonInterests = "common_interests"
+        case hierarchicalDetails = "hierarchical_details"
+    }
+}
+
+/// 階層マッチング詳細
+struct HierarchicalMatchDetails: Codable {
+    let exactMatches: Int         // タグレベル完全一致数
+    let subcategoryMatches: Int   // サブカテゴリレベル一致数
+    let categoryMatches: Int      // カテゴリレベル一致数
+    let weightedScore: Double     // 重み付けスコア
+    let maxPossibleScore: Int     // 最大可能スコア
+    
+    enum CodingKeys: String, CodingKey {
+        case exactMatches = "exact_matches"
+        case subcategoryMatches = "subcategory_matches"
+        case categoryMatches = "category_matches"
+        case weightedScore = "weighted_score"
+        case maxPossibleScore = "max_possible_score"
+    }
+    
+    /// マッチング詳細の表示テキスト
+    var detailText: String {
+        var details: [String] = []
+        
+        if exactMatches > 0 {
+            details.append("🎯 完全一致: \(exactMatches)件")
+        }
+        if subcategoryMatches > 0 {
+            details.append("📂 カテゴリ一致: \(subcategoryMatches)件")
+        }
+        if categoryMatches > 0 {
+            details.append("📁 分野一致: \(categoryMatches)件")
+        }
+        
+        return details.isEmpty ? "共通の興味関心なし" : details.joined(separator: " • ")
+    }
+    
+    /// マッチング品質レベル
+    var qualityLevel: String {
+        let ratio = Double(exactMatches) / Double(maxPossibleScore)
+        
+        if ratio >= 0.7 {
+            return "[HIGH] 高い適合度"
+        } else if ratio >= 0.4 {
+            return "[GOOD] 良い適合度"
+        } else {
+            return "[LOW] 基本的な適合度"
+        }
     }
 }
 
@@ -252,4 +300,100 @@ enum Prefecture: String, CaseIterable {
         case .okinawa: return "沖縄県"
         }
     }
+}
+
+// MARK: - Recommended Circles Response Models
+
+struct RecommendedCirclesResponse: Codable {
+    let circles: [RecommendedCircleData]
+    let algorithmUsed: String
+    let computationTimeMs: Double
+    let totalCandidates: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case circles
+        case algorithmUsed = "algorithm_used"
+        case computationTimeMs = "computation_time_ms"
+        case totalCandidates = "total_candidates"
+    }
+}
+
+struct RecommendedCircleData: Codable {
+    let id: String
+    let circle: CircleBasic  // Circleの代わりにCircleBasicを使用
+    let matchingDetails: MatchingDetailsAPI
+    let memberCount: Int
+    let matchReason: String
+    
+    enum CodingKeys: String, CodingKey {
+        case id, circle
+        case matchingDetails = "matching_details"
+        case memberCount = "member_count"
+        case matchReason = "match_reason"
+    }
+}
+
+// APIレスポンス用のCircle基本情報
+struct CircleBasic: Codable {
+    let id: String
+    let name: String
+    let description: String
+    let status: String
+    let circleType: String
+    let memberCount: Int
+    let postCount: Int
+    let tags: [String]
+    let createdAt: String
+    let updatedAt: String
+    let lastActivityAt: String
+    let iconUrl: String?
+    let coverUrl: String?
+    let owner: CircleOwner?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, status, tags
+        case circleType = "circle_type"
+        case memberCount = "member_count"
+        case postCount = "post_count"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case lastActivityAt = "last_activity_at"
+        case iconUrl = "icon_url"
+        case coverUrl = "cover_url"
+        case owner
+    }
+}
+
+// サークルオーナー情報
+struct CircleOwner: Codable {
+    let id: String
+    let username: String
+    let displayName: String
+    
+    enum CodingKeys: String, CodingKey {
+        case id, username
+        case displayName = "display_name"
+    }
+}
+
+// APIレスポンス用のMatchingDetails
+struct MatchingDetailsAPI: Codable {
+    let totalScore: Double
+    let confidence: Double
+    let reasons: [MatchingReasonAPI]
+    let matchExplanation: String
+    
+    enum CodingKeys: String, CodingKey {
+        case totalScore = "total_score"
+        case confidence
+        case reasons
+        case matchExplanation = "match_explanation"
+    }
+}
+
+// APIレスポンス用のマッチング理由
+struct MatchingReasonAPI: Codable {
+    let type: String
+    let detail: String
+    let weight: Double
 } 

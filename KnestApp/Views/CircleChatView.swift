@@ -13,119 +13,52 @@ struct CircleChatView: View {
     @State private var messageText = ""
     @State private var showingEmojiPicker = false
     @FocusState private var isTextFieldFocused: Bool
+    @State private var showingErrorAlert = false
+    @Environment(\.dismiss) private var dismiss
+    @Binding var selectedTab: Int
     
-    init(circle: KnestCircle, circleManager: CircleManager = CircleManager.shared) {
+    init(circle: KnestCircle, circleManager: CircleManager = CircleManager.shared, selectedTab: Binding<Int> = .constant(0)) {
         self.circle = circle
         self.circleManager = circleManager
+        self._selectedTab = selectedTab
     }
     
     var body: some View {
         VStack(spacing: 0) {
-            // チャットヘッダー
-            ChatHeaderView(circle: circle)
-            
-            // デバッグ情報表示
-            if circleManager.circleChats.isEmpty {
-                Text("チャットデータがありません（count: \(circleManager.circleChats.count)）")
-                    .foregroundColor(.red)
-                    .padding()
-            } else {
-                Text("チャット数: \(circleManager.circleChats.count)")
-                    .foregroundColor(.blue)
-                    .padding(.vertical, 4)
-            }
+            // ヘッダー
+            headerView
             
             // メッセージリスト
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(circleManager.circleChats) { chat in
-                            ChatMessageRowView(
-                                chat: chat,
-                                isCurrentUser: chat.sender.id == getCurrentUserId()
-                            )
-                            .id(chat.id)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                }
-                .onChange(of: circleManager.circleChats.count) { _ in
-                    // 新しいメッセージが来たら自動スクロール
-                    if let lastMessage = circleManager.circleChats.last {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                        }
-                    }
-                }
-            }
+            messageListView
             
-            // メッセージ入力エリア
-            ChatInputView(
-                messageText: $messageText,
-                showingEmojiPicker: $showingEmojiPicker,
-                isTextFieldFocused: $isTextFieldFocused,
-                onSend: sendMessage
-            )
+            // 入力エリア
+            inputView
         }
-        .navigationTitle(circle.name)
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(true)
+        .ignoresSafeArea(.all) // フルスクリーン
         .onAppear {
-            loadChats()
+            circleManager.loadCircleChats(circleId: circle.id)
         }
-        .onTapGesture {
-            // 画面タップでキーボードを閉じる
-            isTextFieldFocused = false
+        .alert("エラー", isPresented: $showingErrorAlert) {
+            Button("OK") { }
+        } message: {
+            Text(circleManager.errorMessage ?? "不明なエラーが発生しました")
+        }
+        .sheet(isPresented: $showingEmojiPicker) {
+            Text("絵文字ピッカー（未実装）")
+                .presentationDetents([.medium])
         }
     }
     
-    private func loadChats() {
-        // 既存のチャットデータをクリア
-        circleManager.resetCircleChats()
-        
-        print("🔄 チャット読み込み開始：circle: \(circle.id)")
-        circleManager.loadCircleChats(circleId: circle.id)
-    }
-    
-    private func sendMessage() {
-        guard !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        
-        let content = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        circleManager.sendMessage(circleId: circle.id, content: content)
-        
-        messageText = ""
-        isTextFieldFocused = false
-    }
-    
-    private func getCurrentUserId() -> String {
-        // AuthenticationManagerから現在のユーザーIDを取得
-        return AuthenticationManager.shared.getCurrentUserId() ?? "unknown_user_id"
-    }
-}
-
-// MARK: - Chat Header View
-struct ChatHeaderView: View {
-    let circle: KnestCircle
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            // サークルアイコン
-            AsyncImage(url: URL(string: circle.iconUrl ?? "")) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.blue.opacity(0.2))
-                    .overlay(
-                        Image(systemName: "person.3.fill")
-                            .foregroundColor(.blue)
-                    )
+    private var headerView: some View {
+        HStack {
+            Button("戻る") {
+                dismiss()
             }
-            .frame(width: 40, height: 40)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
             
-            VStack(alignment: .leading, spacing: 2) {
+            Spacer()
+            
+            VStack {
                 Text(circle.name)
                     .font(.headline)
                     .fontWeight(.semibold)
@@ -137,25 +70,19 @@ struct ChatHeaderView: View {
             
             Spacer()
             
-            // アクションボタン
-            HStack(spacing: 16) {
-                Button {
-                    // メンバー一覧表示
-                } label: {
-                    Image(systemName: "person.2.fill")
-                        .foregroundColor(.blue)
-                }
-                
-                Button {
-                    // 設定メニュー
-                } label: {
-                    Image(systemName: "ellipsis.circle.fill")
-                        .foregroundColor(.blue)
-                }
+            Button {
+                // 検索画面に戻る
+                selectedTab = 1
+                dismiss()
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.title2)
+                    .foregroundColor(.blue)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal)
+        .padding(.top, 50) // ステータスバー分のパディング
+        .padding(.bottom, 12)
         .background(Color(UIColor.systemBackground))
         .overlay(
             Rectangle()
@@ -164,111 +91,167 @@ struct ChatHeaderView: View {
             alignment: .bottom
         )
     }
+    
+    private var messageListView: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    // ページネーション用のローディングインジケーター
+                    if circleManager.isLoadingMoreChats {
+                        HStack {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("読み込み中...")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 16)
+                        .frame(maxWidth: .infinity)
+                    }
+                    
+                    // メッセージリスト
+                    ForEach(circleManager.circleChats) { chat in
+                        ChatMessageRow(
+                            chat: chat,
+                            isCurrentUser: chat.sender.username == AuthenticationManager.shared.currentUser?.username
+                        )
+                        .padding(.horizontal)
+                        .padding(.vertical, 6)
+                        .id(chat.id) // IDを追加してスクロール対象にする
+                        .onAppear {
+                            // 最初のメッセージが表示されたら次のページを読み込み
+                            if chat.id == circleManager.circleChats.first?.id {
+                                loadMoreMessages()
+                            }
+                        }
+                    }
+                }
+            }
+            .onChange(of: circleManager.circleChats.count) {
+                // 新しいメッセージが追加されたら最下部にスクロール
+                if let lastMessage = circleManager.circleChats.last {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private var inputView: some View {
+        ChatInputView(
+            messageText: $messageText,
+            showingEmojiPicker: $showingEmojiPicker,
+            isTextFieldFocused: $isTextFieldFocused,
+            onSend: sendMessage
+        )
+    }
+    
+    private func sendMessage() {
+        guard !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        
+        let content = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // メッセージを送信
+        circleManager.sendMessage(circleId: circle.id, content: content)
+        
+        // 入力フィールドをクリア
+        messageText = ""
+        isTextFieldFocused = false
+        
+        print("📤 メッセージ送信処理完了: \(content)")
+    }
+    
+    private func loadMoreMessages() {
+        // CircleManagerのページネーション機能を使用
+        circleManager.loadMoreCircleChats(circleId: circle.id)
+        print("📄 次のページを読み込み中...")
+    }
+    
+    private func getCurrentUserId() -> String {
+        // AuthenticationManagerから現在のユーザーIDを取得
+        return AuthenticationManager.shared.getCurrentUserId() ?? "unknown_user_id"
+    }
 }
 
 // MARK: - Chat Message Row View
-struct ChatMessageRowView: View {
+struct ChatMessageRow: View {
     let chat: CircleChat
     let isCurrentUser: Bool
     
+    // 自分以外の既読者数を計算
+    private var othersReadCount: Int {
+        guard let currentUser = AuthenticationManager.shared.currentUser else {
+            return chat.readBy.count
+        }
+        return chat.readBy.filter { $0.username != currentUser.username }.count
+    }
+    
     var body: some View {
-        HStack(alignment: .bottom, spacing: 12) {
-            if !isCurrentUser {
-                // 他のユーザーのアバター
-                AsyncImage(url: URL(string: chat.sender.avatarUrl ?? "")) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .overlay(
-                            Text(String(chat.sender.displayName.prefix(1)))
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                        )
-                }
-                .frame(width: 32, height: 32)
-                .clipShape(Circle())
-            }
-            
-            VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
-                if !isCurrentUser {
-                    Text(chat.sender.displayName.isEmpty ? chat.sender.username : chat.sender.displayName)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                // リプライ表示
-                if let replyTo = chat.replyTo {
-                    ReplyPreviewView(reply: replyTo)
-                }
-                
-                // メッセージバブル
-                HStack {
-                    if isCurrentUser {
-                        Spacer(minLength: 50)
-                    }
+        HStack {
+            if isCurrentUser {
+                Spacer()
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(chat.content)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(16)
                     
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(chat.content)
-                            .font(.body)
-                            .foregroundColor(isCurrentUser ? .white : .primary)
-                            .multilineTextAlignment(.leading)
+                    HStack(spacing: 4) {
+                        Text(formatTime(chat.createdAt))
+                            .font(.caption2)
+                            .foregroundColor(.gray)
                         
-                        // メディア表示
-                        if !chat.mediaUrls.isEmpty {
-                            MediaGridView(mediaUrls: chat.mediaUrls)
+                        // 自分以外の既読者がいる場合のみ表示
+                        if othersReadCount > 0 {
+                            Text("既読 \(othersReadCount)")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(isCurrentUser ? Color.blue : Color.gray.opacity(0.1))
-                    )
-                    
-                    if !isCurrentUser {
-                        Spacer(minLength: 50)
-                    }
                 }
-                
-                // タイムスタンプと既読表示
-                HStack(spacing: 4) {
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        AsyncImage(url: URL(string: chat.sender.avatarUrl ?? "")) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            SwiftUI.Circle()
+                                .fill(Color.gray.opacity(0.3))
+                        }
+                        .frame(width: 32, height: 32)
+                        .clipShape(SwiftUI.Circle())
+                        
+                        Text(chat.sender.displayName ?? chat.sender.username)
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    Text(chat.content)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(16)
+                    
                     Text(formatTime(chat.createdAt))
                         .font(.caption2)
-                        .foregroundColor(.secondary)
-                    
-                    if isCurrentUser && !chat.readBy.isEmpty {
-                        Text("既読 \(chat.readBy.count)")
-                            .font(.caption2)
-                            .foregroundColor(.blue)
-                    }
-                    
-                    if chat.isEdited {
-                        Text("編集済み")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
+                        .foregroundColor(.gray)
                 }
-            }
-            
-            if isCurrentUser {
-                // 自分のメッセージの時はアバターは右側（または非表示）
                 Spacer()
             }
         }
     }
     
-    private func formatTime(_ dateString: String) -> String {
-        // ISO8601形式の日付文字列を時刻に変換
-        let formatter = ISO8601DateFormatter()
-        guard let date = formatter.date(from: dateString) else { return "" }
-        
-        let timeFormatter = DateFormatter()
-        timeFormatter.timeStyle = .short
-        return timeFormatter.string(from: date)
+    private func formatTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
     }
 }
 
@@ -283,7 +266,7 @@ struct ReplyPreviewView: View {
                 .frame(width: 3)
             
             VStack(alignment: .leading, spacing: 2) {
-                Text(reply.sender.displayName)
+                Text(reply.sender.displayName ?? "Unknown")
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.blue)
@@ -384,6 +367,7 @@ struct ChatInputView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
+            .padding(.bottom, 83) // タブバー分のパディングを増加（34 + 49 = 83）
             .background(Color(UIColor.systemBackground))
         }
     }
