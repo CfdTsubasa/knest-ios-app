@@ -474,6 +474,16 @@ class NetworkManager: ObservableObject {
             responseType: CircleEvent.self
         )
     }
+    
+    // MARK: - Authentication (Test User)
+    func loginAsTestUser() -> AnyPublisher<LoginResponse, Error> {
+        // エンドポイント: /api/users/auth/test-user/
+        return makeRequest(
+            endpoint: "/users/auth/test-user/",
+            method: .POST,
+            responseType: LoginResponse.self
+        )
+    }
 }
 
 // MARK: - Supporting Types

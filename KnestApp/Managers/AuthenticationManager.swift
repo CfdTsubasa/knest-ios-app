@@ -140,6 +140,25 @@ class AuthenticationManager: ObservableObject {
         return currentUser?.id
     }
     
+    func loginAsTestUser() {
+        isLoading = true
+        errorMessage = nil
+        
+        networkManager.loginAsTestUser()
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    self?.isLoading = false
+                    if case .failure(let error) = completion {
+                        self?.errorMessage = error.localizedDescription
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    self?.handleLoginResponse(response)
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
     // MARK: - Private Methods
     
     private func handleLoginResponse(_ response: LoginResponse) {

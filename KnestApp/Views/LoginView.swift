@@ -65,6 +65,22 @@ struct LoginView: View {
                         .cornerRadius(10)
                     }
                     .disabled(authManager.isLoading || username.isEmpty || password.isEmpty)
+                    
+                    Button(action: loginAsTestUser) {
+                        HStack {
+                            if authManager.isLoading {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            }
+                            Text("テストユーザーでログイン")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.gray.opacity(0.2))
+                        .foregroundColor(.blue)
+                        .cornerRadius(10)
+                    }
+                    .disabled(authManager.isLoading)
                 }
                 .padding(.horizontal, 32)
                 
@@ -92,6 +108,10 @@ struct LoginView: View {
     
     private func login() {
         authManager.login(username: username, password: password)
+    }
+    
+    private func loginAsTestUser() {
+        authManager.loginAsTestUser()
     }
 }
 
