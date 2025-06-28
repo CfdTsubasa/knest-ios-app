@@ -45,9 +45,13 @@ class NetworkManager: ObservableObject {
         // デバッグログ
         print("[HTTP] HTTP \(method.rawValue) \(url.absoluteString)")
         if token != nil { print("[AUTH] 認証ありリクエスト") }
+        if let bodyString = String(data: body ?? Data(), encoding: .utf8) {
+            print("[BODY] リクエストボディ: \(bodyString)")
+        }
         
         // JSONDecoderのセットアップ
         let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase  // スネークケースからキャメルケースへ変換
         
         // カスタム日付デコーディング戦略
         decoder.dateDecodingStrategy = .custom { decoder in

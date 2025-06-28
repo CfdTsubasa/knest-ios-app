@@ -65,7 +65,7 @@ struct LoginView: View {
                     }
                     .disabled(authManager.isLoading || username.isEmpty || password.isEmpty)
                     
-                    Button(action: loginAsTestUser) {
+                    Button(action: createTestUser) {
                         HStack {
                             if authManager.isLoading {
                                 ProgressView()

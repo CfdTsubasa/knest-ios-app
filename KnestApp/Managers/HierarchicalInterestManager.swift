@@ -272,7 +272,11 @@ class HierarchicalInterestManager: ObservableObject {
         
         let requestBody = CreateUserInterestProfileCategoryRequest(categoryId: categoryId, level: 1)
         
-        guard let body = try? JSONEncoder().encode(requestBody) else {
+        guard let body = try? {
+            let encoder = JSONEncoder()
+            encoder.keyEncodingStrategy = .convertToSnakeCase  // キャメルケースからスネークケースへ変換
+            return try encoder.encode(requestBody)
+        }() else {
             error = "リクエストのエンコードに失敗しました"
             isLoading = false
             return
