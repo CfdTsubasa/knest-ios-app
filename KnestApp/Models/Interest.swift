@@ -103,41 +103,4 @@ struct CreateUserInterestRequest: Codable {
     enum CodingKeys: String, CodingKey {
         case interest_id
     }
-}
-
-// MARK: - ハッシュタグシステム
-
-// ハッシュタグモデル
-struct Tag: Codable, Identifiable, Hashable {
-    let id: Int
-    let name: String
-    let usageCount: Int
-    let createdAt: String
-    
-    enum CodingKeys: String, CodingKey {
-        case id, name
-        case usageCount = "usage_count"
-        case createdAt = "created_at"
-    }
-}
-
-// ユーザーハッシュタグモデル
-struct UserTag: Codable, Identifiable {
-    let id: Int
-    let tag: Tag
-    let addedAt: String
-    
-    enum CodingKeys: String, CodingKey {
-        case id, tag
-        case addedAt = "added_at"
-    }
-}
-
-// ユーザーハッシュタグ作成リクエスト
-struct CreateUserTagRequest: Codable {
-    let tag_name: String
-    
-    enum CodingKeys: String, CodingKey {
-        case tag_name
-    }
 } 

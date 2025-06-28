@@ -26,6 +26,7 @@ class NetworkManager: ObservableObject {
         responseType: T.Type
     ) -> AnyPublisher<T, Error> {
         guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            print("[ERROR] 無効なURL: \(baseURL)\(endpoint)")
             return Fail(error: NetworkError.invalidURL)
                 .eraseToAnyPublisher()
         }
@@ -36,10 +37,15 @@ class NetworkManager: ObservableObject {
         
         if let token = token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            print("[DEBUG] 認証トークン: \(token)")
         }
         
         if let body = body {
             request.httpBody = body
+            // リクエストボディのデバッグログ
+            if let jsonString = String(data: body, encoding: .utf8) {
+                print("[DEBUG] リクエストボディ: \(jsonString)")
+            }
         }
         
         // デバッグログ
@@ -100,6 +106,7 @@ class NetworkManager: ObservableObject {
         return URLSession.shared.dataTaskPublisher(for: request)
             .tryMap { data, response in
                 guard let httpResponse = response as? HTTPURLResponse else {
+                    print("[ERROR] 無効なレスポンス: \(response)")
                     throw NetworkError.invalidResponse
                 }
                 
@@ -107,18 +114,9 @@ class NetworkManager: ObservableObject {
                 print("[RESPONSE] レスポンス: \(httpResponse.statusCode) - \(url.absoluteString)")
                 print("[STATS] データサイズ: \(data.count)バイト")
                 
-                // JSONレスポンスの内容をログ出力（デバッグ用）
-                if endpoint.contains("recommended_circles") {
-                    if let jsonString = String(data: data, encoding: .utf8) {
-                        print("[DEBUG] レスポンス内容: \(jsonString)")
-                    }
-                }
-                
-                // メッセージ送信のレスポンス内容も詳細ログ
-                if endpoint.contains("/api/circles/chats/") && method == .POST {
-                    if let jsonString = String(data: data, encoding: .utf8) {
-                        print("[MESSAGE] メッセージ送信レスポンス内容: \(jsonString)")
-                    }
+                // レスポンスボディのデバッグログ
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    print("[DEBUG] レスポンスボディ: \(jsonString)")
                 }
                 
                 guard 200...299 ~= httpResponse.statusCode else {
@@ -130,9 +128,11 @@ class NetworkManager: ObservableObject {
                         if let errorData = errorString.data(using: .utf8),
                            let errorJSON = try? JSONSerialization.jsonObject(with: errorData) as? [String: Any],
                            let detailMessage = errorJSON["detail"] as? String {
+                            print("[ERROR] エラー詳細: \(detailMessage)")
                             throw NetworkError.serverError(detailMessage)
                         }
                     }
+                    print("[ERROR] HTTPエラー: \(httpResponse.statusCode)")
                     throw NetworkError.httpError(httpResponse.statusCode)
                 }
                 
@@ -257,66 +257,6 @@ class NetworkManager: ObservableObject {
         
         return makeRequest(
             endpoint: "/api/user-interests/\(id)/",
-            method: .DELETE,
-            token: token,
-            responseType: EmptyResponse.self
-        )
-    }
-    
-    // MARK: - Hashtags
-    
-    func getTags(search: String? = nil) -> AnyPublisher<[Tag], Error> {
-        var endpoint = "/api/interests/tags/"
-        if let search = search, !search.isEmpty {
-            endpoint += "?search=\(search.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
-        }
-        
-        return makeRequest(
-            endpoint: endpoint,
-            responseType: [Tag].self
-        )
-    }
-    
-    func getPopularTags() -> AnyPublisher<[Tag], Error> {
-        return makeRequest(
-            endpoint: "/api/interests/tags/popular/",
-            responseType: [Tag].self
-        )
-    }
-    
-    func getUserTags() -> AnyPublisher<[UserTag], Error> {
-        // トークンがあれば送信（認証済みユーザー）、なければ送信しない（testuser使用）
-        let token = getAuthToken()
-        return makeRequest(
-            endpoint: "/api/interests/user-tags/",
-            token: token,
-            responseType: [UserTag].self
-        )
-    }
-    
-    func createUserTag(request: CreateUserTagRequest) -> AnyPublisher<UserTag, Error> {
-        // トークンがあれば送信（認証済みユーザー）、なければ送信しない（testuser使用）
-        let token = getAuthToken()
-        
-        guard let body = try? JSONEncoder().encode(request) else {
-            return Fail(error: NetworkError.encodingError)
-                .eraseToAnyPublisher()
-        }
-        
-        return makeRequest(
-            endpoint: "/api/interests/user-tags/",
-            method: .POST,
-            body: body,
-            token: token,
-            responseType: UserTag.self
-        )
-    }
-    
-    func deleteUserTag(id: Int) -> AnyPublisher<EmptyResponse, Error> {
-        // トークンがあれば送信（認証済みユーザー）、なければ送信しない（testuser使用）
-        let token = getAuthToken()
-        return makeRequest(
-            endpoint: "/api/interests/user-tags/\(id)/",
             method: .DELETE,
             token: token,
             responseType: EmptyResponse.self

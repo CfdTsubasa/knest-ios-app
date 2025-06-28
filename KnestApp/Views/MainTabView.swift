@@ -136,15 +136,6 @@ struct HomeView: View {
                             color: .blue
                         )
                     }
-                    
-                    NavigationLink(destination: HashtagSelectionView()) {
-                        FeatureCardView(
-                            icon: "number",
-                            title: "ハッシュタグ登録",
-                            description: "あなたの興味をハッシュタグで表現しよう",
-                            color: .green
-                        )
-                    }
                 }
                 .padding(.horizontal, 32)
                 

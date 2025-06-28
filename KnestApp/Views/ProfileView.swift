@@ -11,10 +11,8 @@ struct ProfileView: View {
     @StateObject private var authManager = AuthenticationManager.shared
     @StateObject private var interestManager = InterestManager()
     @StateObject private var hierarchicalInterestManager = HierarchicalInterestManager()
-    @StateObject private var hashtagManager = HashtagManager.shared
     @State private var showingInterestSelection = false
     @State private var showingHierarchicalInterestSelection = false
-    @State private var showingHashtagSelection = false
     @State private var showingSettings = false
     @State private var showingEditProfile = false
     
@@ -33,9 +31,6 @@ struct ProfileView: View {
                     
                     // 従来の興味・関心セクション
                     interestsSection
-                    
-                    // ハッシュタグセクション
-                    hashtagsSection
                     
                     // アクティビティセクション
                     activitySection
@@ -60,7 +55,6 @@ struct ProfileView: View {
         .onAppear {
             interestManager.loadUserInterests()
             hierarchicalInterestManager.loadUserProfiles()
-            hashtagManager.loadUserTags()
         }
         .sheet(isPresented: $showingInterestSelection, onDismiss: {
             interestManager.loadUserInterests()
@@ -71,11 +65,6 @@ struct ProfileView: View {
             hierarchicalInterestManager.loadUserProfiles()
         }) {
             HierarchicalInterestSelectionView()
-        }
-        .sheet(isPresented: $showingHashtagSelection, onDismiss: {
-            hashtagManager.loadUserTags()
-        }) {
-            HashtagSelectionView()
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
@@ -332,68 +321,6 @@ struct ProfileView: View {
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
     }
     
-    private var hashtagsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("ハッシュタグ")
-                        .font(.headline)
-                        .fontWeight(.bold)
-                    
-                    Text("\(hashtagManager.userTags.count)個選択中")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                Button("編集") {
-                    showingHashtagSelection = true
-                }
-                .font(.subheadline)
-                .foregroundColor(.blue)
-            }
-            
-            if hashtagManager.userTags.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "number.circle")
-                        .font(.system(size: 40))
-                        .foregroundColor(.gray)
-                    
-                    Text("ハッシュタグを追加して\nおすすめのサークルを見つけよう")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                    
-                    Button("ハッシュタグを選択") {
-                        showingHashtagSelection = true
-                    }
-                    .font(.subheadline)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 8)
-                    .background(Color.blue)
-                    .cornerRadius(20)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 20)
-            } else {
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: 8) {
-                    ForEach(hashtagManager.userTags) { userTag in
-                        ProfileHashtagChip(userTag: userTag)
-                    }
-                }
-            }
-        }
-        .padding()
-        .background(Color.white)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-    
     private var activitySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("アクティビティ")
@@ -486,23 +413,6 @@ struct InterestChip: View {
     var body: some View {
         HStack(spacing: 6) {
             Text(userInterest.interest.name)
-                .font(.caption)
-                .fontWeight(.medium)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color.blue.opacity(0.1))
-        .foregroundColor(.blue)
-        .cornerRadius(12)
-    }
-}
-
-struct ProfileHashtagChip: View {
-    let userTag: UserTag
-    
-    var body: some View {
-        HStack(spacing: 6) {
-            Text("#\(userTag.tag.name)")
                 .font(.caption)
                 .fontWeight(.medium)
         }

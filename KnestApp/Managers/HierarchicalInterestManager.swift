@@ -267,6 +267,9 @@ class HierarchicalInterestManager: ObservableObject {
             return
         }
         
+        print("[DEBUG] カテゴリレベル興味追加開始: categoryId=\(categoryId)")
+        print("[DEBUG] 認証トークン: \(token)")
+        
         isLoading = true
         error = nil
         
@@ -275,7 +278,13 @@ class HierarchicalInterestManager: ObservableObject {
         guard let body = try? JSONEncoder().encode(requestBody) else {
             error = "リクエストのエンコードに失敗しました"
             isLoading = false
+            print("[ERROR] リクエストのエンコードに失敗: categoryId=\(categoryId)")
             return
+        }
+        
+        // リクエストボディのデバッグログ
+        if let jsonString = String(data: body, encoding: .utf8) {
+            print("[DEBUG] リクエストボディ: \(jsonString)")
         }
         
         // カテゴリレベル追加API呼び出し
@@ -293,8 +302,24 @@ class HierarchicalInterestManager: ObservableObject {
                 switch completion {
                 case .failure(let error):
                     print("[ERROR] カテゴリレベル興味追加エラー: \(error.localizedDescription)")
-                    self?.error = "カテゴリレベルでの興味追加に失敗しました"
+                    if let networkError = error as? NetworkError {
+                        switch networkError {
+                        case .serverError(let message):
+                            print("[ERROR] サーバーエラー: \(message)")
+                            self?.error = message
+                        case .httpError(let code):
+                            print("[ERROR] HTTPエラー: \(code)")
+                            self?.error = "カテゴリレベルでの興味追加に失敗しました（\(code)）"
+                        default:
+                            print("[ERROR] その他のエラー: \(error)")
+                            self?.error = "カテゴリレベルでの興味追加に失敗しました"
+                        }
+                    } else {
+                        print("[ERROR] 不明なエラー: \(error)")
+                        self?.error = "カテゴリレベルでの興味追加に失敗しました"
+                    }
                 case .finished:
+                    print("[SUCCESS] カテゴリレベル興味追加完了")
                     break
                 }
             },
