@@ -41,10 +41,10 @@ struct InterestSelectionView: View {
             }
         }
         .onAppear {
-            print("📱 興味選択画面が表示されました")
-            print("📱 興味データの読み込みを開始...")
+            print("[INFO] 興味選択画面が表示されました")
+            print("[INFO] 興味データの読み込みを開始...")
             interestManager.loadInterests()
-            print("📱 ユーザー興味データの読み込みを開始...")
+            print("[INFO] ユーザー興味データの読み込みを開始...")
             interestManager.loadUserInterests()
         }
         .overlay {
