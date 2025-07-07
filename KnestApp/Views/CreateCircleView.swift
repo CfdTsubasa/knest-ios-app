@@ -10,6 +10,7 @@ import SwiftUI
 struct CreateCircleView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var circleManager = CircleManager()
+    @StateObject private var hierarchicalInterestManager = HierarchicalInterestManager()
     
     @State private var name = ""
     @State private var description = ""
@@ -19,6 +20,8 @@ struct CreateCircleView: View {
     @State private var rules = ""
     @State private var tags: [String] = []
     @State private var newTag = ""
+    @State private var showingInterestSelection = false
+    @State private var selectedInterests: [InterestTag] = []
     
     var body: some View {
         NavigationView {
@@ -27,6 +30,30 @@ struct CreateCircleView: View {
                     TextField("サークル名", text: $name)
                     TextField("説明", text: $description, axis: .vertical)
                         .lineLimit(3...6)
+                }
+                
+                Section("興味・関心") {
+                    if selectedInterests.isEmpty {
+                        Button("興味・関心を選択") {
+                            showingInterestSelection = true
+                        }
+                    } else {
+                        ForEach(selectedInterests) { interest in
+                            HStack {
+                                Text(interest.name)
+                                Spacer()
+                                Button {
+                                    selectedInterests.removeAll { $0.id == interest.id }
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        Button("興味・関心を追加") {
+                            showingInterestSelection = true
+                        }
+                    }
                 }
                 
                 Section("設定") {
@@ -87,11 +114,14 @@ struct CreateCircleView: View {
                     .disabled(!isFormValid)
                 }
             }
+            .sheet(isPresented: $showingInterestSelection) {
+                HierarchicalInterestSelectionView()
+            }
         }
     }
     
     private var isFormValid: Bool {
-        !name.isEmpty && !description.isEmpty
+        !name.isEmpty && !description.isEmpty && !selectedInterests.isEmpty
     }
     
     private func addTag() {
@@ -106,10 +136,8 @@ struct CreateCircleView: View {
         let request = CreateCircleRequest(
             name: name,
             description: description,
-            status: .open,
-            maxMembers: hasMemberLimit ? memberLimit : nil,
-            tags: tags,
-            interests: [] // TODO: 興味選択機能実装時に対応
+            isPrivate: circleType == .private,
+            interests: selectedInterests.map { $0.id }
         )
         
         circleManager.createCircle(request: request)

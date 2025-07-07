@@ -10,13 +10,22 @@ import Foundation
 // MARK: - 3階層興味関心システム
 
 /// 興味関心カテゴリ（第1階層）
-struct InterestCategory: Codable, Identifiable, Hashable {
-    let id: String
-    let name: String
-    let type: String
-    let description: String
-    let iconUrl: String?
-    let createdAt: String
+public struct InterestCategory: Codable, Identifiable, Hashable {
+    public let id: String
+    public let name: String
+    public let type: String
+    public let description: String
+    public let iconUrl: String?
+    public let createdAt: String
+    
+    public init(id: String, name: String, type: String = "default", description: String, iconUrl: String? = nil, createdAt: String = "2025-01-01T00:00:00Z") {
+        self.id = id
+        self.name = name
+        self.type = type
+        self.description = description
+        self.iconUrl = iconUrl
+        self.createdAt = createdAt
+    }
     
     enum CodingKeys: String, CodingKey {
         case id, name, type, description
@@ -26,43 +35,79 @@ struct InterestCategory: Codable, Identifiable, Hashable {
 }
 
 /// 興味関心サブカテゴリ（第2階層）
-struct InterestSubcategory: Codable, Identifiable, Hashable {
-    let id: String
-    let category: InterestCategory // カテゴリオブジェクト
-    let name: String
-    let description: String
-    let createdAt: String
+public struct InterestSubcategory: Codable, Identifiable, Hashable {
+    public let id: String
+    public let category: InterestCategory
+    public let name: String
+    public let description: String
+    public let iconUrl: String?
+    public let createdAt: String
+    
+    public init(id: String, category: InterestCategory, name: String, description: String, createdAt: String = "2025-01-01T00:00:00Z", iconUrl: String? = nil) {
+        self.id = id
+        self.category = category
+        self.name = name
+        self.description = description
+        self.iconUrl = iconUrl
+        self.createdAt = createdAt
+    }
     
     enum CodingKeys: String, CodingKey {
         case id, category, name, description
+        case iconUrl = "icon_url"
         case createdAt = "created_at"
     }
 }
 
 /// 興味関心タグ（第3階層）
-struct InterestTag: Codable, Identifiable, Hashable {
-    let id: String
-    let subcategory: InterestSubcategory // サブカテゴリオブジェクト
-    let name: String
-    let description: String
-    let usageCount: Int
-    let createdAt: String
+public struct InterestTag: Codable, Identifiable, Hashable {
+    public let id: String
+    public let subcategory: InterestSubcategory
+    public let name: String
+    public let description: String?
+    public let isOfficial: Bool
+    public let usageCount: Int
+    public let iconUrl: String?
+    public let createdAt: String
+    public let updatedAt: String?
+    
+    public init(id: String, subcategory: InterestSubcategory, name: String, description: String? = nil, isOfficial: Bool = false, usageCount: Int = 0, iconUrl: String? = nil, createdAt: String = "2025-01-01T00:00:00Z", updatedAt: String? = nil) {
+        self.id = id
+        self.subcategory = subcategory
+        self.name = name
+        self.description = description
+        self.isOfficial = isOfficial
+        self.usageCount = usageCount
+        self.iconUrl = iconUrl
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
     
     enum CodingKeys: String, CodingKey {
-        case id, subcategory, name, description
+        case id, subcategory, name, description, isOfficial, iconUrl
         case usageCount = "usage_count"
         case createdAt = "created_at"
+        case updatedAt = "updated_at"
     }
 }
 
 /// ユーザーの興味関心プロフィール
-struct UserInterestProfile: Codable, Identifiable {
-    let id: String
-    let user: String // ユーザーID
-    let category: InterestCategory?
-    let subcategory: InterestSubcategory?
-    let tag: InterestTag?
-    let addedAt: String
+public struct UserInterestProfile: Codable, Identifiable {
+    public let id: String
+    public let user: String
+    public let category: InterestCategory?
+    public let subcategory: InterestSubcategory?
+    public let tag: InterestTag?
+    public let addedAt: String
+    
+    public init(id: String, user: String, category: InterestCategory? = nil, subcategory: InterestSubcategory? = nil, tag: InterestTag? = nil, addedAt: String = "2025-01-01T00:00:00Z") {
+        self.id = id
+        self.user = user
+        self.category = category
+        self.subcategory = subcategory
+        self.tag = tag
+        self.addedAt = addedAt
+    }
     
     enum CodingKeys: String, CodingKey {
         case id, user, category, subcategory, tag
@@ -396,4 +441,48 @@ struct MatchingReasonAPI: Codable {
     let type: String
     let detail: String
     let weight: Double
+}
+
+extension InterestTag {
+    func localizedCaseInsensitiveContains(_ other: String) -> Bool {
+        name.localizedCaseInsensitiveContains(other)
+    }
+    
+    // レガシーコード互換（name, description, subcategory 順）
+    init(id: String,
+         name: String,
+         description: String? = nil,
+         subcategory: InterestSubcategory,
+         isOfficial: Bool = false,
+         usageCount: Int = 0,
+         iconUrl: String? = nil,
+         createdAt: String = "2025-01-01T00:00:00Z",
+         updatedAt: String? = nil) {
+        self.init(id: id,
+                  subcategory: subcategory,
+                  name: name,
+                  description: description,
+                  isOfficial: isOfficial,
+                  usageCount: usageCount,
+                  iconUrl: iconUrl,
+                  createdAt: createdAt,
+                  updatedAt: updatedAt)
+    }
+}
+
+extension InterestSubcategory {
+    // レガシー順序 id, name, description, category
+    init(id: String,
+         name: String,
+         description: String,
+         category: InterestCategory,
+         iconUrl: String? = nil,
+         createdAt: String = "2025-01-01T00:00:00Z") {
+        self.init(id: id,
+                  category: category,
+                  name: name,
+                  description: description,
+                  createdAt: createdAt,
+                  iconUrl: iconUrl)
+    }
 } 

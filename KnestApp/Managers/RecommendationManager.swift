@@ -185,6 +185,7 @@ class RecommendationManager: ObservableObject {
     
     /// サークル閲覧をトラッキング
     func trackCircleView(for circle: KnestCircle) {
+        print("[TRACK] サークル詳細表示: ID='\(circle.id)', Name='\(circle.name)'")
         if let recommendation = recommendations.first(where: { $0.circle.id == circle.id }) {
             viewedRecommendations.insert(circle.id)
             sendFeedback(
@@ -211,6 +212,7 @@ class RecommendationManager: ObservableObject {
     
     /// 参加申請をトラッキング
     func trackJoinRequest(for circle: KnestCircle) {
+        print("[TRACK] サークル参加申請: ID='\(circle.id)', Name='\(circle.name)'")
         if let recommendation = recommendations.first(where: { $0.circle.id == circle.id }) {
             sendFeedback(
                 for: circle,
@@ -223,6 +225,7 @@ class RecommendationManager: ObservableObject {
     
     /// 参加成功をトラッキング
     func trackJoinSuccess(for circle: KnestCircle) {
+        print("[TRACK] サークル参加成功: ID='\(circle.id)', Name='\(circle.name)'")
         if let recommendation = recommendations.first(where: { $0.circle.id == circle.id }) {
             sendFeedback(
                 for: circle,

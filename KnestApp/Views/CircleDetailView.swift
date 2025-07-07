@@ -179,7 +179,7 @@ struct CircleHeaderView: View {
                             .font(.caption)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
-                            .background(Color(circle.status.color))
+                            .background(Color(statusColorName: circle.status.color))
                             .foregroundColor(.white)
                             .clipShape(Capsule())
                         
@@ -221,8 +221,8 @@ struct CircleHeaderView: View {
             }
             
             // 興味
-            if !circle.interests.isEmpty {
-                CircleInterestsView(interests: circle.interests)
+            if !circle.tags.isEmpty {
+                CircleInterestsView(interests: circle.tags)
             }
         }
     }
@@ -591,13 +591,13 @@ struct StatView: View {
 }
 
 struct TagsView: View {
-    let tags: [String]
+    let tags: [InterestTag]
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(tags, id: \.self) { tag in
-                    Text("#\(tag)")
+                ForEach(tags, id: \.id) { tag in
+                    Text("#\(tag.name)")
                         .font(.caption)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -612,7 +612,7 @@ struct TagsView: View {
 }
 
 struct CircleInterestsView: View {
-    let interests: [Interest]
+    let interests: [InterestTag]
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -622,7 +622,7 @@ struct CircleInterestsView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(interests) { interest in
-                        Text(interest.name)
+                        Text("\(interest.name) [\(interest.subcategory.category.name)]")
                             .font(.caption)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
@@ -906,7 +906,7 @@ struct CircleMemberRow: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
                             ForEach(member.interests.prefix(5), id: \.id) { interest in
-                                Text(interest.name)
+                                Text("\(interest.name) [\(interest.subcategory.category.name)]")
                                     .font(.caption)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
@@ -972,7 +972,7 @@ struct CircleMember: Identifiable, Codable {
     let user: CircleMemberUser
     let role: MemberRole
     let joinedAt: String
-    let interests: [Interest]
+    let interests: [InterestTag]
     
     enum MemberRole: String, Codable {
         case member = "member"
@@ -987,42 +987,131 @@ struct CircleMember: Identifiable, Codable {
     static func generateSampleMembers() -> [CircleMember] {
         let sampleUserData = [
             // 管理者・モデレーター
-            ("alice_dev", "Alice", "フロントエンド開発者。React/Vue.jsが好きです。", MemberRole.admin, "2024-01-15", ["プログラミング", "Web開発", "デザイン"]),
-            ("bob_design", "Bob", "UIデザイナー。美しいインターフェースを作ることが情熱です。", MemberRole.moderator, "2024-02-10", ["デザイン", "UI/UX", "グラフィック"]),
-            ("carol_lead", "Carol", "プロジェクトマネージャー。チーム作りが得意です。", MemberRole.moderator, "2024-01-20", ["マネジメント", "チームワーク", "プロジェクト"]),
+            ("alice_dev", "Alice", "フロントエンド開発者。React/Vue.jsが好きです。", MemberRole.admin, "2024-01-15", [
+                ("プログラミング", "開発", "技術"),
+                ("Web開発", "フロントエンド", "技術"),
+                ("デザイン", "UI/UX", "クリエイティブ")
+            ]),
+            ("bob_design", "Bob", "UIデザイナー。美しいインターフェースを作ることが情熱です。", MemberRole.moderator, "2024-02-10", [
+                ("デザイン", "UI/UX", "クリエイティブ"),
+                ("グラフィック", "ビジュアル", "クリエイティブ")
+            ]),
+            ("carol_lead", "Carol", "プロジェクトマネージャー。チーム作りが得意です。", MemberRole.moderator, "2024-01-20", [
+                ("マネジメント", "リーダーシップ", "ビジネス"),
+                ("チームワーク", "コミュニケーション", "ビジネス")
+            ]),
             
             // アクティブメンバー
-            ("charlie_game", "Charlie", "ゲーム開発に興味があります。UnityとC#を学習中。", MemberRole.member, "2024-03-05", ["ゲーム開発", "Unity", "プログラミング"]),
-            ("diana_ai", "Diana", "AI・機械学習エンジニア。Pythonとデータサイエンスが専門です。", MemberRole.member, "2024-02-28", ["AI", "機械学習", "Python"]),
-            ("edward_mobile", "Edward", "モバイル開発者。SwiftとKotlinでアプリを作っています。", MemberRole.member, "2024-03-12", ["Swift", "iOS", "モバイル開発"]),
-            ("fiona_backend", "Fiona", "バックエンドエンジニア。Node.jsとGoが得意です。", MemberRole.member, "2024-03-18", ["バックエンド", "Node.js", "Go"]),
-            ("george_data", "George", "データアナリスト。統計とビジュアライゼーションが好きです。", MemberRole.member, "2024-03-25", ["データ分析", "統計", "可視化"]),
-            ("hannah_ux", "Hannah", "UXリサーチャー。ユーザーの声を大切にしています。", MemberRole.member, "2024-04-02", ["UX", "リサーチ", "ユーザビリティ"]),
-            ("ivan_security", "Ivan", "セキュリティエンジニア。安全なシステム作りに取り組んでいます。", MemberRole.member, "2024-04-08", ["セキュリティ", "インフラ", "ネットワーク"]),
+            ("charlie_game", "Charlie", "ゲーム開発に興味があります。UnityとC#を学習中。", MemberRole.member, "2024-03-05", [
+                ("ゲーム開発", "開発", "技術"),
+                ("Unity", "ゲーム", "技術")
+            ]),
+            ("diana_ai", "Diana", "AI・機械学習エンジニア。Pythonとデータサイエンスが専門です。", MemberRole.member, "2024-02-28", [
+                ("AI", "機械学習", "技術"),
+                ("Python", "開発", "技術"),
+                ("データサイエンス", "分析", "技術")
+            ]),
+            ("edward_mobile", "Edward", "モバイル開発者。SwiftとKotlinでアプリを作っています。", MemberRole.member, "2024-03-12", [
+                ("Swift", "iOS開発", "技術"),
+                ("モバイル開発", "アプリ開発", "技術")
+            ]),
+            ("fiona_backend", "Fiona", "バックエンドエンジニア。Node.jsとGoが得意です。", MemberRole.member, "2024-03-18", [
+                ("バックエンド", "サーバー", "技術"),
+                ("Node.js", "Web開発", "技術"),
+                ("Go", "開発", "技術")
+            ]),
+            ("george_data", "George", "データアナリスト。統計とビジュアライゼーションが好きです。", MemberRole.member, "2024-03-25", [
+                ("データ分析", "分析", "技術"),
+                ("統計", "分析", "技術"),
+                ("可視化", "データ", "技術")
+            ]),
+            ("hannah_ux", "Hannah", "UXリサーチャー。ユーザーの声を大切にしています。", MemberRole.member, "2024-04-02", [
+                ("UX", "UI/UX", "クリエイティブ"),
+                ("リサーチ", "調査", "ビジネス"),
+                ("ユーザビリティ", "UI/UX", "クリエイティブ")
+            ]),
+            ("ivan_security", "Ivan", "セキュリティエンジニア。安全なシステム作りに取り組んでいます。", MemberRole.member, "2024-04-08", [
+                ("セキュリティ", "インフラ", "技術"),
+                ("ネットワーク", "インフラ", "技術")
+            ]),
             
             // 新しいメンバー
-            ("julia_pm", "Julia", "プロダクトマネージャー。ユーザー体験の向上を目指しています。", MemberRole.member, "2024-04-15", ["プロダクト", "戦略", "ユーザー体験"]),
-            ("kevin_devops", "Kevin", "DevOpsエンジニア。CI/CDとクラウドインフラが専門です。", MemberRole.member, "2024-04-20", ["DevOps", "AWS", "Docker"]),
-            ("lisa_frontend", "Lisa", "フロントエンドエンジニア。React Nativeでモバイルアプリも作ります。", MemberRole.member, "2024-04-25", ["React", "JavaScript", "フロントエンド"]),
-            ("mike_full", "Mike", "フルスタック開発者。何でも作れるようになりたいです！", MemberRole.member, "2024-05-01", ["フルスタック", "Web開発", "データベース"]),
-            ("nina_qa", "Nina", "QAエンジニア。品質の高いソフトウェアを目指します。", MemberRole.member, "2024-05-05", ["QA", "テスト", "品質管理"]),
-            ("oscar_blockchain", "Oscar", "ブロックチェーン開発者。分散システムに興味があります。", MemberRole.member, "2024-05-10", ["ブロックチェーン", "暗号通貨", "Web3"]),
-            ("penny_marketing", "Penny", "テックマーケター。技術とビジネスをつなぐ役割です。", MemberRole.member, "2024-05-15", ["マーケティング", "ビジネス", "コミュニケーション"]),
-            ("quinn_student", "Quinn", "コンピューターサイエンス専攻の大学生です。", MemberRole.member, "2024-05-20", ["コンピューターサイエンス", "アルゴリズム", "学習"]),
-            ("ruby_designer", "Ruby", "グラフィックデザイナー。ブランディングとロゴデザインが得意。", MemberRole.member, "2024-05-25", ["グラフィックデザイン", "ブランディング", "ロゴ"]),
-            ("sam_entrepreneur", "Sam", "起業家志望。テック系スタートアップを準備中です。", MemberRole.member, "2024-06-01", ["起業", "スタートアップ", "ビジネス"])
+            ("julia_pm", "Julia", "プロダクトマネージャー。ユーザー体験の向上を目指しています。", MemberRole.member, "2024-04-15", [
+                ("プロダクト", "マネジメント", "ビジネス"),
+                ("戦略", "マネジメント", "ビジネス"),
+                ("ユーザー体験", "UI/UX", "クリエイティブ")
+            ]),
+            ("kevin_devops", "Kevin", "DevOpsエンジニア。CI/CDとクラウドインフラが専門です。", MemberRole.member, "2024-04-20", [
+                ("DevOps", "インフラ", "技術"),
+                ("AWS", "クラウド", "技術"),
+                ("Docker", "インフラ", "技術")
+            ]),
+            ("lisa_frontend", "Lisa", "フロントエンドエンジニア。React Nativeでモバイルアプリも作ります。", MemberRole.member, "2024-04-25", [
+                ("React", "フロントエンド", "技術"),
+                ("JavaScript", "Web開発", "技術"),
+                ("フロントエンド", "Web開発", "技術")
+            ]),
+            ("mike_full", "Mike", "フルスタック開発者。何でも作れるようになりたいです！", MemberRole.member, "2024-05-01", [
+                ("フルスタック", "開発", "技術"),
+                ("Web開発", "フロントエンド", "技術"),
+                ("データベース", "バックエンド", "技術")
+            ]),
+            ("nina_qa", "Nina", "QAエンジニア。品質の高いソフトウェアを目指します。", MemberRole.member, "2024-05-05", [
+                ("QA", "品質管理", "技術"),
+                ("テスト", "品質管理", "技術")
+            ]),
+            ("oscar_blockchain", "Oscar", "ブロックチェーン開発者。分散システムに興味があります。", MemberRole.member, "2024-05-10", [
+                ("ブロックチェーン", "Web3", "技術"),
+                ("暗号通貨", "Web3", "技術"),
+                ("Web3", "ブロックチェーン", "技術")
+            ]),
+            ("penny_marketing", "Penny", "テックマーケター。技術とビジネスをつなぐ役割です。", MemberRole.member, "2024-05-15", [
+                ("マーケティング", "ビジネス戦略", "ビジネス"),
+                ("コミュニケーション", "ビジネス", "ビジネス")
+            ]),
+            ("quinn_student", "Quinn", "コンピューターサイエンス専攻の大学生です。", MemberRole.member, "2024-05-20", [
+                ("コンピューターサイエンス", "基礎", "技術"),
+                ("アルゴリズム", "基礎", "技術"),
+                ("学習", "教育", "その他")
+            ]),
+            ("ruby_designer", "Ruby", "グラフィックデザイナー。ブランディングとロゴデザインが得意。", MemberRole.member, "2024-05-25", [
+                ("グラフィックデザイン", "ビジュアル", "クリエイティブ"),
+                ("ブランディング", "デザイン", "クリエイティブ"),
+                ("ロゴ", "ビジュアル", "クリエイティブ")
+            ]),
+            ("sam_entrepreneur", "Sam", "起業家志望。テック系スタートアップを準備中です。", MemberRole.member, "2024-06-01", [
+                ("起業", "ビジネス戦略", "ビジネス"),
+                ("スタートアップ", "ビジネス戦略", "ビジネス"),
+                ("ビジネス", "マネジメント", "ビジネス")
+            ])
         ]
         
         return sampleUserData.enumerated().map { index, userData in
-            let (username, displayName, bio, role, joinedAt, interestNames) = userData
+            let (username, displayName, bio, role, joinedAt, interestData) = userData
             
-            // 興味関心をInterestオブジェクトに変換
-            let interests = interestNames.enumerated().map { interestIndex, name in
-                Interest(
+            // 階層型興味関心データを生成
+            let interests = interestData.enumerated().map { interestIndex, interestInfo in
+                let (name, subcategoryName, categoryName) = interestInfo
+
+                // カテゴリ & サブカテゴリモデルを生成
+                let category = InterestCategory(
+                    id: "cat_\(index)_\(interestIndex)",
+                    name: categoryName,
+                    description: "" // サンプル用に空文字を設定
+                )
+
+                let subcategory = InterestSubcategory(
+                    id: "sub_\(index)_\(interestIndex)",
+                    category: category,
+                    name: subcategoryName,
+                    description: "" // サンプル用に空文字を設定
+                )
+
+                return InterestTag(
                     id: "\(index)_\(interestIndex)",
+                    subcategory: subcategory,
                     name: name,
                     description: nil,
-                    category: getCategoryForInterest(name),
                     isOfficial: true,
                     usageCount: Int.random(in: 10...100),
                     iconUrl: nil,
@@ -1044,21 +1133,6 @@ struct CircleMember: Identifiable, Codable {
                 joinedAt: joinedAt,
                 interests: interests
             )
-        }
-    }
-    
-    private static func getCategoryForInterest(_ interestName: String) -> String {
-        switch interestName {
-        case "プログラミング", "Web開発", "AI", "機械学習", "Python", "Swift", "iOS", "バックエンド", "Node.js", "Go", "セキュリティ", "DevOps", "AWS", "Docker", "React", "JavaScript", "フルスタック", "データベース", "ブロックチェーン", "暗号通貨", "Web3", "Unity", "ゲーム開発", "モバイル開発", "フロントエンド", "インフラ", "ネットワーク", "コンピューターサイエンス", "アルゴリズム":
-            return "technical"
-        case "デザイン", "UI/UX", "グラフィック", "UX", "ユーザビリティ", "グラフィックデザイン", "ブランディング", "ロゴ":
-            return "creative"
-        case "マネジメント", "チームワーク", "プロジェクト", "プロダクト", "戦略", "ユーザー体験", "マーケティング", "ビジネス", "起業", "スタートアップ":
-            return "business"
-        case "データ分析", "統計", "可視化", "リサーチ", "QA", "テスト", "品質管理", "学習":
-            return "analysis"
-        default:
-            return "other"
         }
     }
 }
@@ -1174,4 +1248,16 @@ extension String {
 
 #Preview {
     CircleDetailView(circle: KnestCircle.sample(), selectedTab: .constant(0))
-} 
+}
+
+/*
+#Preview {
+    CircleDetailView(circle: KnestCircle.sample(), selectedTab: .constant(0))
+}
+
+#if DEBUG
+private func generateSampleCircleMembers() -> [CircleMember] {
+    // ... existing code ...
+}
+#endif
+*/ 

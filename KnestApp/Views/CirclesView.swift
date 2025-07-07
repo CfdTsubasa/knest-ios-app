@@ -203,12 +203,15 @@ struct SearchCirclesView: View {
         
         isSearching = true
         
-        // 検索実行
-        circleManager.loadCircles(search: searchText)
+        // サークル一覧を取得
+        circleManager.loadCircles()
         
-        // CircleManagerの検索結果を監視
+        // 取得後にクライアント側で簡易フィルタ
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            searchResults = circleManager.circles
+            searchResults = circleManager.circles.filter {
+                $0.name.localizedCaseInsensitiveContains(searchText) ||
+                $0.description.localizedCaseInsensitiveContains(searchText)
+            }
             isSearching = false
         }
     }
@@ -425,7 +428,7 @@ struct RecommendedCircleRowView: View {
                         .font(.caption)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color(recommendation.circle.status.color))
+                        .background(Color(statusColorName: recommendation.circle.status.color))
                         .foregroundColor(.white)
                         .clipShape(Capsule())
                 }
@@ -440,26 +443,24 @@ struct RecommendedCircleRowView: View {
 // MARK: - Circle Row View
 struct CircleRowView: View {
     let circle: KnestCircle
-    var showMembershipInfo = false
-    var showRecommendReason = false
     
     var body: some View {
-        HStack {
+        HStack(spacing: 12) {
             // サークルアイコン
             AsyncImage(url: URL(string: circle.iconUrl ?? "")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } placeholder: {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.3))
+                SwiftUI.Circle()
+                    .fill(Color.blue.opacity(0.1))
                     .overlay(
-                        Image(systemName: "person.3")
-                            .foregroundColor(.gray)
+                        Image(systemName: "person.3.fill")
+                            .foregroundColor(.blue)
                     )
             }
             .frame(width: 50, height: 50)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(SwiftUI.Circle())
             
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -474,7 +475,7 @@ struct CircleRowView: View {
                         .font(.caption)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
-                        .background(Color(circle.status.color))
+                        .background(Color(statusColorName: circle.status.color))
                         .foregroundColor(.white)
                         .clipShape(Capsule())
                 }
@@ -491,12 +492,12 @@ struct CircleRowView: View {
                     
                     if !circle.tags.isEmpty {
                         HStack(spacing: 4) {
-                            ForEach(circle.tags.prefix(2), id: \.self) { tag in
-                                Text("#\(tag)")
+                            ForEach(circle.tags.prefix(2), id: \.id) { tag in
+                                Text("#\(tag.name)")
                                     .font(.caption)
                                     .foregroundColor(.blue)
                             }
-                            
+
                             if circle.tags.count > 2 {
                                 Text("+\(circle.tags.count - 2)")
                                     .font(.caption)
@@ -510,25 +511,6 @@ struct CircleRowView: View {
             Spacer()
         }
         .padding(.vertical, 4)
-    }
-}
-
-// MARK: - Circle Search Bar
-struct CircleSearchBar: View {
-    @Binding var text: String
-    var onSearchButtonClicked: () -> Void
-    
-    var body: some View {
-        HStack {
-            TextField("サークルを検索...", text: $text)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .onSubmit {
-                    onSearchButtonClicked()
-                }
-            
-            Button("検索", action: onSearchButtonClicked)
-                .buttonStyle(.borderedProminent)
-        }
     }
 }
 
@@ -633,7 +615,7 @@ struct NextGenRecommendationRowView: View {
                     .font(.caption)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color(recommendation.circle.status.color))
+                    .background(Color(statusColorName: recommendation.circle.status.color))
                     .foregroundColor(.white)
                     .clipShape(Capsule())
                 
@@ -875,7 +857,6 @@ struct AlgorithmWeightRow: View {
 
 // MARK: - Empty Recommendation View
 struct EmptyRecommendationView: View {
-    @State private var showingInterestSelection = false
     @State private var showingHierarchicalInterestSelection = false
     
     var body: some View {
@@ -926,7 +907,7 @@ struct EmptyRecommendationView: View {
                             .font(.title3)
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("詳細な興味関心を設定")
+                            Text("興味関心を設定")
                                 .font(.headline)
                                 .fontWeight(.semibold)
                             
@@ -944,40 +925,6 @@ struct EmptyRecommendationView: View {
                     .background(
                         LinearGradient(
                             colors: [.purple, .pink],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                
-                // 基本興味関心設定ボタン
-                Button {
-                    showingInterestSelection = true
-                } label: {
-                    HStack {
-                        Image(systemName: "heart.circle")
-                            .font(.title3)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("基本的な興味関心を設定")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                            
-                            Text("かんたん設定でスタート")
-                                .font(.caption)
-                        }
-                        
-                        Spacer()
-                        
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                    }
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(
-                        LinearGradient(
-                            colors: [.blue, .cyan],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -1013,9 +960,6 @@ struct EmptyRecommendationView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .sheet(isPresented: $showingInterestSelection) {
-            InterestSelectionView()
-        }
         .sheet(isPresented: $showingHierarchicalInterestSelection) {
             HierarchicalInterestSelectionView()
         }

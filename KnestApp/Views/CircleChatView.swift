@@ -248,8 +248,14 @@ struct ChatMessageRow: View {
         }
     }
     
-    private func formatTime(_ date: Date) -> String {
+    private func formatTime(_ dateString: String) -> String {
         let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        
+        guard let date = formatter.date(from: dateString) else {
+            return dateString
+        }
+        
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: date)
     }

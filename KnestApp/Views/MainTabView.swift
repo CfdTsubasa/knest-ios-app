@@ -9,7 +9,9 @@ import SwiftUI
 
 struct MainTabView: View {
     @EnvironmentObject var authManager: AuthenticationManager
+    @StateObject private var hierarchicalInterestManager = HierarchicalInterestManager.shared
     @State private var selectedTab = 0
+    @State private var showingInterestSelection = false
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -56,13 +58,28 @@ struct MainTabView: View {
                 .tag(3)
         }
         .accentColor(.blue)
+        .sheet(isPresented: $showingInterestSelection) {
+            HierarchicalInterestSelectionView()
+        }
+        .onAppear {
+            checkInterests()
+        }
+    }
+    
+    private func checkInterests() {
+        // 興味関心が設定されていない場合は選択画面を表示
+        if hierarchicalInterestManager.userProfiles.isEmpty {
+            showingInterestSelection = true
+        }
+        
+        // 興味関心データを読み込み
+        hierarchicalInterestManager.loadUserProfiles()
     }
 }
 
 struct HomeView: View {
     @Binding var selectedTab: Int
-    @StateObject private var interestManager = InterestManager()
-    @StateObject private var hierarchicalInterestManager = HierarchicalInterestManager()
+    @StateObject private var hierarchicalInterestManager = HierarchicalInterestManager.shared
     
     var body: some View {
         NavigationView {
@@ -82,7 +99,7 @@ struct HomeView: View {
                     .padding(.horizontal, 32)
                 
                 // 興味関心未設定時の特別なキャプション
-                if interestManager.userInterests.isEmpty && hierarchicalInterestManager.userProfiles.isEmpty {
+                if hierarchicalInterestManager.userProfiles.isEmpty {
                     VStack(spacing: 12) {
                         HStack {
                             Image(systemName: "lightbulb.fill")
@@ -145,7 +162,6 @@ struct HomeView: View {
             .navigationTitle("ホーム")
         }
         .onAppear {
-            interestManager.loadUserInterests()
             hierarchicalInterestManager.loadUserProfiles()
         }
     }
@@ -294,8 +310,8 @@ struct MyCircleRowView: View {
                         .foregroundColor(.secondary)
                     
                     // 最終活動時間
-                    if let lastActivity = circle.lastActivityAt {
-                        Text("最終活動: \(formatDate(lastActivity))")
+                    if !circle.lastActivityAt.isEmpty {
+                        Text("最終活動: \(formatDate(circle.lastActivityAt))")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

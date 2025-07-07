@@ -9,12 +9,12 @@ import SwiftUI
 
 struct ProfileView: View {
     @StateObject private var authManager = AuthenticationManager.shared
-    @StateObject private var interestManager = InterestManager()
     @StateObject private var hierarchicalInterestManager = HierarchicalInterestManager()
     @State private var showingInterestSelection = false
     @State private var showingHierarchicalInterestSelection = false
     @State private var showingSettings = false
     @State private var showingEditProfile = false
+    @State private var selectedTab = 0
     
     var body: some View {
         NavigationView {
@@ -53,15 +53,9 @@ struct ProfileView: View {
             }
         }
         .onAppear {
-            interestManager.loadUserInterests()
             hierarchicalInterestManager.loadUserProfiles()
         }
         .sheet(isPresented: $showingInterestSelection, onDismiss: {
-            interestManager.loadUserInterests()
-        }) {
-            InterestSelectionView()
-        }
-        .sheet(isPresented: $showingHierarchicalInterestSelection, onDismiss: {
             hierarchicalInterestManager.loadUserProfiles()
         }) {
             HierarchicalInterestSelectionView()
@@ -212,7 +206,7 @@ struct ProfileView: View {
                 Spacer()
                 
                 Button("編集") {
-                    showingHierarchicalInterestSelection = true
+                    showingInterestSelection = true
                 }
                 .font(.subheadline)
                 .foregroundColor(.blue)
@@ -230,7 +224,7 @@ struct ProfileView: View {
                         .multilineTextAlignment(.center)
                     
                     Button("興味関心を設定") {
-                        showingHierarchicalInterestSelection = true
+                        showingInterestSelection = true
                     }
                     .font(.subheadline)
                     .foregroundColor(.white)
@@ -267,7 +261,7 @@ struct ProfileView: View {
                         .font(.headline)
                         .fontWeight(.bold)
                     
-                    Text("\(interestManager.userInterests.count)個選択中")
+                    Text("\(hierarchicalInterestManager.userProfiles.count)個設定中")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -281,7 +275,7 @@ struct ProfileView: View {
                 .foregroundColor(.blue)
             }
             
-            if interestManager.userInterests.isEmpty {
+            if hierarchicalInterestManager.userProfiles.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "heart.circle")
                         .font(.system(size: 40))
@@ -309,8 +303,8 @@ struct ProfileView: View {
                     GridItem(.flexible()),
                     GridItem(.flexible())
                 ], spacing: 8) {
-                    ForEach(interestManager.userInterests) { userInterest in
-                        InterestChip(userInterest: userInterest)
+                    ForEach(hierarchicalInterestManager.userProfiles) { profile in
+                        InterestChip(profile: profile)
                     }
                 }
             }
@@ -408,11 +402,11 @@ struct ProfileView: View {
 }
 
 struct InterestChip: View {
-    let userInterest: UserInterest
+    let profile: UserInterestProfile
     
     var body: some View {
         HStack(spacing: 6) {
-            Text(userInterest.interest.name)
+            Text(profile.tag?.name ?? profile.subcategory?.name ?? profile.category?.name ?? "Unknown")
                 .font(.caption)
                 .fontWeight(.medium)
         }

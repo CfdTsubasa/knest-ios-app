@@ -28,6 +28,10 @@ class AuthenticationManager: ObservableObject {
     
     // MARK: - Public Methods
     
+    func getAccessToken() -> String? {
+        return accessToken
+    }
+    
     func login(username: String, password: String) {
         isLoading = true
         errorMessage = nil
@@ -138,12 +142,6 @@ class AuthenticationManager: ObservableObject {
     
     func getCurrentUserId() -> String? {
         return currentUser?.id
-    }
-    
-    // MARK: - Token Access
-    
-    func getAccessToken() -> String? {
-        return accessToken
     }
     
     // MARK: - Test User Creation

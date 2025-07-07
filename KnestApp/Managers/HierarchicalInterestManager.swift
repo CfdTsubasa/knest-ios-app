@@ -10,7 +10,9 @@ import Combine
 import SwiftUI
 
 @MainActor
-class HierarchicalInterestManager: ObservableObject {
+public class HierarchicalInterestManager: ObservableObject {
+    public static let shared = HierarchicalInterestManager()
+    
     @Published var categories: [InterestCategory] = []
     @Published var subcategories: [InterestSubcategory] = []
     @Published var tags: [InterestTag] = []
@@ -21,6 +23,8 @@ class HierarchicalInterestManager: ObservableObject {
     private let networkManager = NetworkManager.shared
     private let authManager = AuthenticationManager.shared
     private var cancellables = Set<AnyCancellable>()
+    
+    public init() {} // publicを追加
     
     // MARK: - カテゴリ管理
     
@@ -51,7 +55,6 @@ class HierarchicalInterestManager: ObservableObject {
                             self?.error = nil
                         case .httpError(500):
                             self?.error = "サーバーエラーが発生しました。しばらく後に再試行してください"
-                            self?.categories = self?.generateSampleCategories() ?? []
                         default:
                             self?.error = "カテゴリの取得に失敗しました"
                             self?.categories = self?.generateSampleCategories() ?? []
@@ -278,7 +281,7 @@ class HierarchicalInterestManager: ObservableObject {
         guard let body = try? JSONEncoder().encode(requestBody) else {
             error = "リクエストのエンコードに失敗しました"
             isLoading = false
-            print("[ERROR] リクエストのエンコードに失敗: categoryId=\(categoryId)")
+            print("[ERROR] リクエストのエンコード失敗: categoryId=\(categoryId)")
             return
         }
         
@@ -287,7 +290,7 @@ class HierarchicalInterestManager: ObservableObject {
             print("[DEBUG] リクエストボディ: \(jsonString)")
         }
         
-        // カテゴリレベル追加API呼び出し
+        // カテゴリレベル追加APIを呼び出し
         networkManager.makeRequest(
             endpoint: "/api/interests/hierarchical/user-profiles/add_category_level/",
             method: .POST,
@@ -301,30 +304,14 @@ class HierarchicalInterestManager: ObservableObject {
                 self?.isLoading = false
                 switch completion {
                 case .failure(let error):
-                    print("[ERROR] カテゴリレベル興味追加エラー: \(error.localizedDescription)")
-                    if let networkError = error as? NetworkError {
-                        switch networkError {
-                        case .serverError(let message):
-                            print("[ERROR] サーバーエラー: \(message)")
-                            self?.error = message
-                        case .httpError(let code):
-                            print("[ERROR] HTTPエラー: \(code)")
-                            self?.error = "カテゴリレベルでの興味追加に失敗しました（\(code)）"
-                        default:
-                            print("[ERROR] その他のエラー: \(error)")
-                            self?.error = "カテゴリレベルでの興味追加に失敗しました"
-                        }
-                    } else {
-                        print("[ERROR] 不明なエラー: \(error)")
-                        self?.error = "カテゴリレベルでの興味追加に失敗しました"
-                    }
+                    print("[ERROR] カテゴリレベル追加エラー: \(error.localizedDescription)")
+                    self?.error = "興味の追加に失敗しました"
                 case .finished:
-                    print("[SUCCESS] カテゴリレベル興味追加完了")
                     break
                 }
             },
             receiveValue: { [weak self] profile in
-                print("[SUCCESS] カテゴリレベル興味追加成功: \(profile.category?.name ?? "Unknown")")
+                print("[SUCCESS] カテゴリレベル追加成功: \(profile.id)")
                 // ユーザープロフィールを再読み込み
                 self?.loadUserProfiles()
             }

@@ -30,23 +30,24 @@ class CircleManager: ObservableObject {
     private var currentChatPage = 1
     
     private let networkManager = NetworkManager.shared
+    private let authManager = AuthenticationManager.shared
     private var cancellables = Set<AnyCancellable>()
     
-    // MARK: - Load All Circles
+    // MARK: - Public Methods
     
-    func loadCircles(page: Int = 1, search: String? = nil, category: String? = nil) {
-        guard let token = networkManager.getAuthToken() else {
-            errorMessage = "認証トークンがありません"
+    func loadCircles() {
+        guard let token = authManager.getAccessToken() else {
+            print("[ERROR] 認証トークンがありません")
             return
         }
         
         print("[INFO] CircleManager.loadCircles 開始")
-        print("   page: \(page), search: \(search ?? "nil"), category: \(category ?? "nil")")
+        print("   page: \(currentChatPage), search: nil, category: nil")
         
         isLoading = true
         errorMessage = nil
         
-        networkManager.getCircles(token: token, page: page, search: search, category: category)
+        networkManager.getCircles(token: token, page: currentChatPage, search: nil, category: nil)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { completion in
@@ -67,8 +68,8 @@ class CircleManager: ObservableObject {
     // MARK: - Load My Circles
     
     func loadMyCircles() {
-        guard let token = networkManager.getAuthToken() else {
-            errorMessage = "認証トークンがありません"
+        guard let token = authManager.getAccessToken() else {
+            print("[ERROR] 認証トークンがありません")
             return
         }
         
@@ -98,7 +99,7 @@ class CircleManager: ObservableObject {
     
     func loadRecommendedCircles() {
         print("[INFO] CircleManager.loadRecommendedCircles 開始")
-        guard let token = AuthenticationManager.shared.getAccessToken() else {
+        guard let token = authManager.getAccessToken() else {
             print("[ERROR] 認証トークンがありません")
             return
         }
@@ -139,8 +140,8 @@ class CircleManager: ObservableObject {
     // MARK: - Load Circle Detail
     
     func loadCircleDetail(circleId: String) {
-        guard let token = networkManager.getAuthToken() else {
-            errorMessage = "認証トークンがありません"
+        guard let token = authManager.getAccessToken() else {
+            print("[ERROR] 認証トークンがありません")
             return
         }
         
@@ -169,8 +170,8 @@ class CircleManager: ObservableObject {
     // MARK: - Create Circle
     
     func createCircle(request: CreateCircleRequest) {
-        guard let token = networkManager.getAuthToken() else {
-            errorMessage = "認証トークンがありません"
+        guard let token = authManager.getAccessToken() else {
+            print("[ERROR] 認証トークンがありません")
             return
         }
         
@@ -204,9 +205,8 @@ class CircleManager: ObservableObject {
         print("   サークルID: '\(circleId)'")
         print("   メッセージ: '\(message ?? "なし")'")
         
-        guard let token = networkManager.getAuthToken() else {
+        guard let token = authManager.getAccessToken() else {
             print("[ERROR] 認証トークンがありません")
-            errorMessage = "認証トークンがありません"
             return
         }
         
@@ -248,7 +248,7 @@ class CircleManager: ObservableObject {
     // MARK: - Leave Circle
     
     func leaveCircle(circleId: String) {
-        guard let token = networkManager.getAuthToken() else {
+        guard let token = authManager.getAccessToken() else {
             errorMessage = "認証トークンがありません"
             return
         }
@@ -278,10 +278,9 @@ class CircleManager: ObservableObject {
     
     // MARK: - Load Circle Chats
     
-    func loadCircleChats(circleId: String, page: Int = 1) {
-        guard let token = networkManager.getAuthToken() else {
-            errorMessage = "認証トークンがありません"
-            print("[ERROR] チャット取得失敗：認証トークンがありません")
+    func loadCircleChats(circleId: String) {
+        guard let token = authManager.getAccessToken() else {
+            print("[ERROR] 認証トークンがありません")
             return
         }
         
@@ -290,63 +289,27 @@ class CircleManager: ObservableObject {
         currentChatPage = 1
         hasMoreChats = true
         
-        print("[START] チャット取得開始：circle: \(circleId), page: \(page)")
+        print("[START] チャット取得開始：circle: \(circleId), page: \(currentChatPage)")
         print("[AUTH] 使用トークン：\(token.prefix(20))...")
-        print("[URL] リクエストURL: /api/circles/chats/?circle=\(circleId)&page=\(page)")
+        print("[URL] リクエストURL: /api/circles/chats/?circle=\(circleId)&page=\(currentChatPage)")
         
-        networkManager.getCircleChats(token: token, circleId: circleId, page: page)
+        networkManager.getCircleChats(token: token, circleId: circleId, page: currentChatPage)
             .sink(
-                receiveCompletion: { [weak self] completion in
-                    DispatchQueue.main.async {
+                receiveCompletion: { [weak self] (completion: Subscribers.Completion<Error>) in
+                    DispatchQueue.main.async { [weak self] in
                         self?.isLoading = false
                         if case .failure(let error) = completion {
                             self?.errorMessage = error.localizedDescription
-                            print("[ERROR] チャット取得失敗：\(error.localizedDescription)")
-                            print("[ERROR] エラー詳細：\(error)")
-                            
-                            // ネットワークエラーの詳細情報を出力
-                            if let networkError = error as? NetworkError {
-                                print("[ERROR] NetworkError type: \(networkError)")
-                                switch networkError {
-                                case .httpError(let code):
-                                    print("[ERROR] HTTP Status Code: \(code)")
-                                case .serverError(let message):
-                                    print("[ERROR] Server Error: \(message)")
-                                case .invalidURL:
-                                    print("[ERROR] Invalid URL")
-                                case .invalidResponse:
-                                    print("[ERROR] Invalid Response")
-                                case .encodingError:
-                                    print("[ERROR] Encoding Error")
-                                }
-                            }
+                            print("[ERROR] チャット取得失敗：\(error)")
                         }
                     }
                 },
-                receiveValue: { [weak self] response in
-                    DispatchQueue.main.async {
-                        print("[SUCCESS] チャット取得成功：\(response.results.count)件のメッセージ")
-                        
-                        // 各チャットメッセージの詳細を表示
-                        for (index, chat) in response.results.enumerated() {
-                            print("[MESSAGE] メッセージ[\(index)]: \"\(chat.content)\" from \(chat.sender.displayName ?? chat.sender.username)")
-                        }
-                        
+                receiveValue: { [weak self] (response: PagedResponse<CircleChat>) in
+                    DispatchQueue.main.async { [weak self] in
                         self?.circleChats = response.results
                         self?.hasMoreChats = response.next != nil
-                        print("[STATS] 現在のチャット表示数：\(self?.circleChats.count ?? 0)")
-                        print("[STATUS] 次のページあり：\(self?.hasMoreChats ?? false)")
-                        
-                        // 現在のcircleChatsの内容をすべて表示
-                        print("[LIST] 現在のcircleChats一覧:")
-                        for (index, chat) in self?.circleChats.enumerated() ?? [].enumerated() {
-                            print("  [\(index)]: \"\(chat.content)\" from \(chat.sender.displayName ?? chat.sender.username)")
-                        }
-                        
-                        // デバッグ：最新のメッセージ内容を表示
-                        if let latestMessage = response.results.last {
-                            print("[LATEST] 最新メッセージ：\(latestMessage.content)")
-                        }
+                        self?.currentChatPage = 1
+                        print("[SUCCESS] チャット取得成功：\(response.results.count)件")
                     }
                 }
             )
@@ -356,14 +319,13 @@ class CircleManager: ObservableObject {
     // MARK: - Load More Circle Chats (Pagination)
     
     func loadMoreCircleChats(circleId: String) {
-        guard hasMoreChats && !isLoadingMoreChats else {
-            print("[STATUS] ページネーション：読み込み不要（hasMore: \(hasMoreChats), isLoading: \(isLoadingMoreChats)）")
+        guard let token = authManager.getAccessToken() else {
+            print("[ERROR] 認証トークンがありません")
             return
         }
         
-        guard let token = networkManager.getAuthToken() else {
-            errorMessage = "認証トークンがありません"
-            print("[ERROR] 追加チャット取得失敗：認証トークンがありません")
+        guard hasMoreChats && !isLoadingMoreChats else {
+            print("[STATUS] ページネーション：読み込み不要（hasMore: \(hasMoreChats), isLoading: \(isLoadingMoreChats)）")
             return
         }
         
@@ -403,37 +365,22 @@ class CircleManager: ObservableObject {
     // MARK: - Send Circle Message
     
     func sendMessage(circleId: String, content: String) {
-        guard let token = networkManager.getAuthToken() else {
-            errorMessage = "認証トークンがありません"
-            print("[ERROR] 送信失敗：認証トークンがありません")
+        guard let token = authManager.getAccessToken() else {
+            print("[ERROR] 認証トークンがありません")
             return
         }
         
-        print("[START] メッセージ送信開始：\(content) to circle: \(circleId)")
-        
         networkManager.sendCircleMessage(token: token, circleId: circleId, content: content)
             .sink(
-                receiveCompletion: { [weak self] completion in
+                receiveCompletion: { [weak self] (completion: Subscribers.Completion<Error>) in
                     if case .failure(let error) = completion {
-                        DispatchQueue.main.async {
-                            self?.errorMessage = error.localizedDescription
-                            print("[ERROR] メッセージ送信失敗：\(error.localizedDescription)")
-                        }
+                        print("[ERROR] メッセージ送信失敗：\(error)")
+                        self?.errorMessage = error.localizedDescription
                     }
                 },
-                receiveValue: { [weak self] chat in
-                    DispatchQueue.main.async {
-                        print("[SUCCESS] メッセージ送信成功：\(chat.content)")
-                        
-                        // 送信されたメッセージを即座にリストに追加
-                        self?.circleChats.append(chat)
-                        print("[STATS] 現在のチャット数：\(self?.circleChats.count ?? 0)")
-                        
-                        // 念のため少し遅延後にチャット一覧を再読み込み（最新状態を確保）
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            self?.refreshCircleChats(circleId: circleId)
-                        }
-                    }
+                receiveValue: { [weak self] (chat: CircleChat) in
+                    print("[SUCCESS] メッセージ送信成功：\(chat.content)")
+                    self?.circleChats.append(chat)
                 }
             )
             .store(in: &cancellables)
@@ -442,7 +389,7 @@ class CircleManager: ObservableObject {
     // MARK: - Refresh Circle Chats (for ensuring latest state)
     
     private func refreshCircleChats(circleId: String) {
-        guard let token = networkManager.getAuthToken() else { return }
+        guard let token = authManager.getAccessToken() else { return }
         
         print("[INFO] チャット一覧を再読み込み中...")
         
@@ -467,7 +414,7 @@ class CircleManager: ObservableObject {
     // MARK: - Load Circle Posts
     
     func loadCirclePosts(circleId: String, page: Int = 1) {
-        guard let token = networkManager.getAuthToken() else {
+        guard let token = authManager.getAccessToken() else {
             errorMessage = "認証トークンがありません"
             return
         }
@@ -501,7 +448,7 @@ class CircleManager: ObservableObject {
     // MARK: - Create Circle Post
     
     func createPost(circleId: String, content: String, mediaUrls: [String] = []) {
-        guard let token = networkManager.getAuthToken() else {
+        guard let token = authManager.getAccessToken() else {
             errorMessage = "認証トークンがありません"
             return
         }
@@ -527,7 +474,7 @@ class CircleManager: ObservableObject {
     // MARK: - Load Circle Events
     
     func loadCircleEvents(circleId: String) {
-        guard let token = networkManager.getAuthToken() else {
+        guard let token = authManager.getAccessToken() else {
             errorMessage = "認証トークンがありません"
             return
         }
@@ -557,7 +504,7 @@ class CircleManager: ObservableObject {
     // MARK: - Create Circle Event
     
     func createEvent(circleId: String, request: CreateEventRequest) {
-        guard let token = networkManager.getAuthToken() else {
+        guard let token = authManager.getAccessToken() else {
             errorMessage = "認証トークンがありません"
             return
         }
@@ -585,7 +532,7 @@ class CircleManager: ObservableObject {
     func loadCircleMembers(circleId: String) {
         print("[START] CircleManager.loadCircleMembers - circleId: \(circleId)")
         
-        guard let token = networkManager.getAuthToken() else {
+        guard let token = authManager.getAccessToken() else {
             print("[ERROR] loadCircleMembers: 認証トークンがありません")
             errorMessage = "認証トークンがありません"
             return

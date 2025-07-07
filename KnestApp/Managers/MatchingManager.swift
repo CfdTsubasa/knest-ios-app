@@ -239,13 +239,11 @@ class MatchingManager: ObservableObject {
                         username: item.circle.owner?.username ?? "",
                         email: "",
                         displayName: item.circle.owner?.displayName,
-                        avatarUrl: nil,
-                        bio: nil,
-                        emotionState: nil,
                         birthDate: nil,
                         prefecture: nil,
-                        isPremium: false,
-                        lastActive: item.circle.updatedAt,
+                        bio: nil,
+                        emotionState: nil,
+                        avatarUrl: nil,
                         createdAt: item.circle.createdAt,
                         updatedAt: item.circle.updatedAt
                     )
@@ -255,23 +253,16 @@ class MatchingManager: ObservableObject {
                         id: item.circle.id,
                         name: item.circle.name,
                         description: item.circle.description,
-                        status: CircleStatus(rawValue: item.circle.status) ?? .open,
-                        circleType: CircleType(rawValue: item.circle.circleType) ?? .public,
-                        createdAt: item.circle.createdAt,
-                        updatedAt: item.circle.updatedAt,
+                        avatarUrl: item.circle.iconUrl,
+                        coverImageUrl: item.circle.coverUrl,
                         owner: owner,
-                        interests: [],
-                        lastActivityAt: item.circle.lastActivityAt,
-                        memberCount: item.circle.memberCount,
-                        isMember: false,
-                        membershipStatus: nil,
+                        members: [],
                         categories: [],
-                        tags: item.circle.tags,
-                        postCount: item.circle.postCount,
-                        iconUrl: item.circle.iconUrl,
-                        coverUrl: item.circle.coverUrl,
-                        rules: nil,
-                        memberLimit: nil
+                        subcategories: [],
+                        tags: [] as [InterestTag],
+                        isPrivate: false,
+                        createdAt: item.circle.createdAt,
+                        updatedAt: item.circle.updatedAt
                     )
                     
                     // MatchingScoreを構築
@@ -379,13 +370,11 @@ class MatchingManager: ObservableObject {
                 username: "owner\(index)",
                 email: "owner\(index)@example.com",
                 displayName: "運営者\(index)",
-                avatarUrl: nil,
-                bio: nil,
-                emotionState: nil,
                 birthDate: nil,
                 prefecture: "東京都",
-                isPremium: false,
-                lastActive: "2025-06-08T12:00:00Z",
+                bio: nil,
+                emotionState: nil,
+                avatarUrl: nil,
                 createdAt: "2025-06-08T12:00:00Z",
                 updatedAt: "2025-06-08T12:00:00Z"
             )
@@ -394,23 +383,16 @@ class MatchingManager: ObservableObject {
                 id: "circle_\(index)",
                 name: name,
                 description: description,
-                status: .open,
-                circleType: .public,
-                createdAt: "2025-06-08T12:00:00Z",
-                updatedAt: "2025-06-08T12:00:00Z",
+                avatarUrl: nil,
+                coverImageUrl: nil,
                 owner: owner,
-                interests: [],
-                lastActivityAt: "2025-06-08T10:00:00Z",
-                memberCount: Int.random(in: 5...50),
-                isMember: false,
-                membershipStatus: nil,
+                members: [],
                 categories: [],
-                tags: tags,
-                postCount: Int.random(in: 10...100),
-                iconUrl: nil,
-                coverUrl: nil,
-                rules: nil,
-                memberLimit: nil
+                subcategories: [],
+                tags: [] as [InterestTag],
+                isPrivate: false,
+                createdAt: "2025-06-08T12:00:00Z",
+                updatedAt: "2025-06-08T12:00:00Z"
             )
             
             return CircleMatch(
@@ -534,13 +516,11 @@ extension MatchingManager {
                     username: username,
                     email: "\(username)@example.com",
                     displayName: displayName,
-                    avatarUrl: nil,
-                    bio: bio,
-                    emotionState: "happy",
                     birthDate: "1995-06-15",
                     prefecture: "東京都",
-                    isPremium: false,
-                    lastActive: "2025-06-08T12:00:00Z",
+                    bio: bio,
+                    emotionState: "happy",
+                    avatarUrl: nil,
                     createdAt: "2025-06-08T12:00:00Z",
                     updatedAt: "2025-06-08T12:00:00Z"
                 ),
@@ -578,18 +558,14 @@ extension MatchingManager {
         // ユーザープロフィールから興味関心を抽出
         for profile in profiles {
             if let tag = profile.tag {
-                interests.append("[TAG] \(tag.name)") // タグレベル
+                interests.append("\(tag.name) [\(tag.subcategory.category.name)]") // タグレベル
             } else if let subcategory = profile.subcategory {
-                interests.append("[SUBCAT] \(subcategory.name)") // サブカテゴリレベル
+                interests.append("\(subcategory.name) [\(subcategory.category.name)]") // サブカテゴリレベル
             } else if let category = profile.category {
-                interests.append("[CAT] \(category.name)") // カテゴリレベル
+                interests.append("\(category.name) [\(category.name)]") // カテゴリレベル
             }
         }
         
-        // デバッグログ
-        print("[STATS] ユーザー興味関心取得: \(interests.count)個 - \(interests)")
-        
-        // 興味関心が設定されていない場合は空配列を返す
         return interests
     }
     
@@ -635,77 +611,37 @@ extension MatchingManager {
         
         // 拡張されたサークルの興味関心パターン（40個のサークルに対応）
         let circleInterestPatterns = [
-            // テクノロジー・プログラミング関連（0-4）
-            ["[TAG] Swift", "[SUBCAT] プログラミング", "[CAT] テクノロジー"],          
-            ["[TAG] JavaScript", "[SUBCAT] Web開発", "[CAT] テクノロジー"],         
-            ["[TAG] Python", "[SUBCAT] AI", "[CAT] テクノロジー"],                 
-            ["[TAG] データ分析", "[SUBCAT] 統計", "[CAT] テクノロジー"],             
-            ["[TAG] Unity", "[SUBCAT] ゲーム開発", "[CAT] テクノロジー"],           
+            // テクノロジー関連
+            ["プログラミング [技術]", "Web開発 [技術]", "AI [技術]"],          
+            ["JavaScript [技術]", "フロントエンド [技術]", "バックエンド [技術]"],         
+            ["Python [技術]", "データサイエンス [技術]", "機械学習 [技術]"],                 
+            ["データ分析 [分析]", "統計 [分析]", "可視化 [分析]"],             
+            ["Unity [技術]", "ゲーム開発 [技術]", "3Dモデリング [クリエイティブ]"],           
             
-            // エンターテイメント・趣味関連（5-9）
-            ["[TAG] 読書", "[SUBCAT] 文学", "[CAT] エンターテイメント"],              
-            ["[TAG] 映画", "[SUBCAT] 映像", "[CAT] エンターテイメント"],              
-            ["[TAG] アニメ", "[SUBCAT] マンガ", "[CAT] エンターテイメント"],          
-            ["[TAG] ボードゲーム", "[SUBCAT] ゲーム", "[CAT] エンターテイメント"],    
-            ["[TAG] 音楽", "[SUBCAT] ライブ", "[CAT] エンターテイメント"],            
+            // クリエイティブ関連
+            ["デザイン [クリエイティブ]", "UI/UX [クリエイティブ]", "グラフィック [クリエイティブ]"],              
+            ["イラスト [クリエイティブ]", "アニメーション [クリエイティブ]", "映像制作 [クリエイティブ]"],              
+            ["音楽 [クリエイティブ]", "作曲 [クリエイティブ]", "DTM [クリエイティブ]"],          
+            ["写真 [クリエイティブ]", "動画編集 [クリエイティブ]", "ポートフォリオ [クリエイティブ]"],    
+            ["ブランディング [ビジネス]", "マーケティング [ビジネス]", "コンテンツ制作 [クリエイティブ]"],            
             
-            // スポーツ・健康関連（10-14）
-            ["[TAG] フットサル", "[SUBCAT] 球技", "[CAT] スポーツ・健康"],            
-            ["[TAG] ランニング", "[SUBCAT] 陸上", "[CAT] スポーツ・健康"],            
-            ["[TAG] ヨガ", "[SUBCAT] フィットネス", "[CAT] スポーツ・健康"],          
-            ["[TAG] テニス", "[SUBCAT] ラケット", "[CAT] スポーツ・健康"],            
-            ["[TAG] バスケ", "[SUBCAT] 球技", "[CAT] スポーツ・健康"],               
-            
-            // ライフスタイル・グルメ関連（15-19）
-            ["[TAG] 料理", "[SUBCAT] グルメ", "[CAT] ライフスタイル"],                
-            ["[TAG] カフェ", "[SUBCAT] コーヒー", "[CAT] ライフスタイル"],            
-            ["[TAG] ワイン", "[SUBCAT] お酒", "[CAT] ライフスタイル"],                
-            ["[TAG] 園芸", "[SUBCAT] 自然", "[CAT] ライフスタイル"],                  
-            ["[TAG] ミニマリスト", "[SUBCAT] 断捨離", "[CAT] ライフスタイル"],        
-            
-            // アート・クリエイティブ関連（20-24）
-            ["[TAG] 写真", "[SUBCAT] 撮影", "[CAT] アート・クリエイティブ"],          
-            ["[TAG] イラスト", "[SUBCAT] 絵画", "[CAT] アート・クリエイティブ"],      
-            ["[TAG] ハンドメイド", "[SUBCAT] 手作り", "[CAT] アート・クリエイティブ"],
-            ["[TAG] デザイン", "[SUBCAT] グラフィック", "[CAT] アート・クリエイティブ"],
-            ["[TAG] 音楽制作", "[SUBCAT] DTM", "[CAT] アート・クリエイティブ"],       
-            
-            // 学習・スキルアップ関連（25-29）
-            ["[TAG] 英語", "[SUBCAT] 語学", "[CAT] 学習・スキルアップ"],             
-            ["[TAG] プレゼン", "[SUBCAT] コミュニケーション", "[CAT] 学習・スキルアップ"],
-            ["[TAG] 投資", "[SUBCAT] 資産運用", "[CAT] 学習・スキルアップ"],         
-            ["[TAG] 起業", "[SUBCAT] ビジネス", "[CAT] 学習・スキルアップ"],         
-            ["[TAG] 心理学", "[SUBCAT] 自己啓発", "[CAT] 学習・スキルアップ"],       
-            
-            // 旅行・アウトドア関連（30-34）
-            ["[TAG] 旅行", "[SUBCAT] 観光", "[CAT] ライフスタイル"],                  
-            ["[TAG] ハイキング", "[SUBCAT] 登山", "[CAT] アウトドア"],               
-            ["[TAG] キャンプ", "[SUBCAT] アウトドア", "[CAT] ライフスタイル"],        
-            ["[TAG] サイクリング", "[SUBCAT] 自転車", "[CAT] スポーツ・健康"],        
-            ["[TAG] 天体観測", "[SUBCAT] 宇宙", "[CAT] 学習・スキルアップ"],         
-            
-            // 文化・伝統関連（35-39）
-            ["[TAG] 茶道", "[SUBCAT] 和文化", "[CAT] 文化・伝統"],                   
-            ["[TAG] 書道", "[SUBCAT] 習字", "[CAT] 文化・伝統"],                     
-            ["[TAG] 着物", "[SUBCAT] 和装", "[CAT] 文化・伝統"],                     
-            ["[TAG] 歴史", "[SUBCAT] 日本史", "[CAT] 学習・スキルアップ"],           
-            ["[TAG] 神社", "[SUBCAT] 寺院", "[CAT] 文化・伝統"]                      
+            // ビジネス関連
+            ["起業 [ビジネス]", "スタートアップ [ビジネス]", "ビジネスプラン [ビジネス]"],            
+            ["マネジメント [ビジネス]", "リーダーシップ [ビジネス]", "チームビルディング [ビジネス]"],            
+            ["プロジェクト管理 [ビジネス]", "アジャイル [ビジネス]", "スクラム [ビジネス]"]
         ]
         
-        guard circleIndex < circleInterestPatterns.count else {
-            // インデックスが範囲外の場合は汎用的なパターンを使用
-            return []
-        }
+        // サークルのインデックスに基づいて興味関心を選択
+        let patternIndex = circleIndex % circleInterestPatterns.count
+        let circleInterests = circleInterestPatterns[patternIndex]
         
-        let circleInterests = circleInterestPatterns[circleIndex]
-        
-        // 実際の共通点を計算
-        return userInterests.filter { userInterest in
-            circleInterests.contains { circleInterest in
-                // 名前の部分一致をチェック
-                let userTag = userInterest.replacingOccurrences(of: "[TAG] ", with: "").replacingOccurrences(of: "[SUBCAT] ", with: "").replacingOccurrences(of: "[CAT] ", with: "")
-                let circleTag = circleInterest.replacingOccurrences(of: "[TAG] ", with: "").replacingOccurrences(of: "[SUBCAT] ", with: "").replacingOccurrences(of: "[CAT] ", with: "")
-                return userTag == circleTag
+        // 共通の興味関心を見つける
+        return circleInterests.filter { circleInterest in
+            userInterests.contains { userInterest in
+                // カテゴリレベルでの一致も考慮
+                let circleCategory = circleInterest.components(separatedBy: " [").last?.replacingOccurrences(of: "]", with: "")
+                let userCategory = userInterest.components(separatedBy: " [").last?.replacingOccurrences(of: "]", with: "")
+                return circleInterest == userInterest || circleCategory == userCategory
             }
         }
     }

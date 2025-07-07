@@ -13,10 +13,12 @@ struct CircleCategory: Codable, Identifiable {
     let name: String
     let description: String
     let createdAt: String
+    let updatedAt: String
     
     enum CodingKeys: String, CodingKey {
         case id, name, description
         case createdAt = "created_at"
+        case updatedAt = "updated_at"
     }
 }
 
@@ -25,62 +27,55 @@ struct KnestCircle: Codable, Identifiable {
     let id: String
     let name: String
     let description: String
-    let status: CircleStatus
-    let circleType: CircleType
+    let avatarUrl: String?
+    let coverImageUrl: String?
+    let owner: User
+    let members: [User]
+    let categories: [InterestCategory]
+    let subcategories: [InterestSubcategory]
+    let tags: [InterestTag]
+    let isPrivate: Bool
     let createdAt: String
     let updatedAt: String
-    let owner: User
-    let interests: [Interest]
-    let lastActivityAt: String?
-    let memberCount: Int
-    let isMember: Bool
-    let membershipStatus: String?
-    let categories: [CircleCategory]
-    let tags: [String]
-    let postCount: Int
-    let iconUrl: String?
-    let coverUrl: String?
-    let rules: String?
-    let memberLimit: Int?
+    let memberCount: Int = 0
+    let lastActivityAt: String = ""
+    let postCount: Int = 0
+    
+    // 後方互換性のためのプロパティ
+    var iconUrl: String? { avatarUrl }
     
     enum CodingKeys: String, CodingKey {
-        case id, name, description, status, owner, interests, categories, tags, rules
-        case circleType = "circle_type"
+        case id, name, description, members
+        case avatarUrl = "avatar_url"
+        case coverImageUrl = "cover_image_url"
+        case owner
+        case categories = "interest_categories"
+        case subcategories = "interest_subcategories"
+        case tags = "interest_tags"
+        case isPrivate = "is_private"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
-        case lastActivityAt = "last_activity_at"
         case memberCount = "member_count"
-        case isMember = "is_member"
-        case membershipStatus = "membership_status"
+        case lastActivityAt = "last_activity_at"
         case postCount = "post_count"
-        case iconUrl = "icon_url"
-        case coverUrl = "cover_url"
-        case memberLimit = "member_limit"
     }
     
     // プレビュー・テスト用のサンプルデータ
     static func sample() -> KnestCircle {
         return KnestCircle(
-            id: "550e8400-e29b-41d4-a716-446655440000",
+            id: "sample-circle-1",
             name: "サンプルサークル",
             description: "これはサンプルのサークルです。",
-            status: .open,
-            circleType: .public,
-            createdAt: "2025-06-08T00:00:00Z",
-            updatedAt: "2025-06-08T00:00:00Z",
+            avatarUrl: nil,
+            coverImageUrl: nil,
             owner: User.sample(),
-            interests: [],
-            lastActivityAt: "2025-06-08T00:00:00Z",
-            memberCount: 10,
-            isMember: false,
-            membershipStatus: nil,
+            members: [User.sample()],
             categories: [],
-            tags: ["プログラミング", "技術"],
-            postCount: 5,
-            iconUrl: nil,
-            coverUrl: nil,
-            rules: nil,
-            memberLimit: 50
+            subcategories: [],
+            tags: [],
+            isPrivate: false,
+            createdAt: "2024-01-01T00:00:00Z",
+            updatedAt: "2024-01-01T00:00:00Z"
         )
     }
 }
@@ -171,66 +166,14 @@ enum MembershipRole: String, Codable, CaseIterable {
     }
 }
 
-// MARK: - Circle Chat
-struct CircleChat: Codable, Identifiable {
-    let id: String
-    let sender: CircleChatAuthor
-    let content: String
-    let createdAt: Date
-    let circle: String
-    let replyTo: ChatReply?
-    let mediaUrls: [String]
-    let readBy: [ReadByUser]
-    let isEdited: Bool
-    
-    enum CodingKeys: String, CodingKey {
-        case id, sender, content, circle
-        case createdAt = "created_at"
-        case replyTo = "reply_to"
-        case mediaUrls = "media_urls"
-        case readBy = "read_by"
-        case isEdited = "is_edited"
-    }
-}
-
-struct ReadByUser: Codable {
-    let id: String
-    let username: String
-    let displayName: String?
-    
-    enum CodingKeys: String, CodingKey {
-        case id, username
-        case displayName = "display_name"
-    }
-}
-
-struct CircleChatAuthor: Codable {
-    let id: String
-    let username: String
-    let displayName: String?
-    let avatarUrl: String?
-    
-    enum CodingKeys: String, CodingKey {
-        case id, username
-        case displayName = "display_name"
-        case avatarUrl = "avatar_url"
-    }
-}
-
-struct ChatReply: Codable {
-    let id: String
-    let sender: CircleChatAuthor
-    let content: String
-}
-
 // MARK: - Circle Post
 struct CirclePost: Codable, Identifiable {
     let id: String
-    let author: CircleChatAuthor
+    let author: User
     let content: String
     let mediaUrls: [String]
-    let createdAt: Date
-    let updatedAt: Date
+    let createdAt: String
+    let updatedAt: String
     let isSystemMessage: Bool
     let isEdited: Bool
     
@@ -265,14 +208,38 @@ struct CircleEvent: Codable, Identifiable {
     }
 }
 
-// MARK: - Create Circle Request
+// MARK: - Circle Creation
 struct CreateCircleRequest: Codable {
     let name: String
     let description: String
-    let status: CircleStatus
-    let maxMembers: Int?
-    let tags: [String]
+    let isPrivate: Bool
     let interests: [String]
+    
+    enum CodingKeys: String, CodingKey {
+        case name, description, interests
+        case isPrivate = "is_private"
+    }
+}
+
+// MARK: - Circle Update
+struct UpdateCircleRequest: Codable {
+    let name: String?
+    let description: String?
+    let isPrivate: Bool?
+    let interests: [String]?
+    
+    enum CodingKeys: String, CodingKey {
+        case name, description, interests
+        case isPrivate = "is_private"
+    }
+}
+
+// MARK: - Circle List Response
+struct CircleListResponse: Codable {
+    let count: Int
+    let next: String?
+    let previous: String?
+    let results: [KnestCircle]
 }
 
 // MARK: - Join Circle Request
@@ -498,13 +465,6 @@ struct CircleResponse: Codable {
 struct CircleJoinResult: Codable {
     let detail: String
     let membership: CircleMembership?
-}
-
-struct CircleListResponse: Codable {
-    let count: Int
-    let next: String?
-    let previous: String?
-    let results: [KnestCircle]
 }
 
 struct PagedResponse<T: Codable>: Codable {
