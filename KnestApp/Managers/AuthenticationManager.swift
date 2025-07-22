@@ -41,6 +41,7 @@ class AuthenticationManager: ObservableObject {
                     }
                 },
                 receiveValue: { [weak self] response in
+                    self?.errorMessage = nil
                     self?.handleLoginResponse(response)
                 }
             )
@@ -70,6 +71,7 @@ class AuthenticationManager: ObservableObject {
                     }
                 },
                 receiveValue: { [weak self] response in
+                    self?.errorMessage = nil
                     self?.handleLoginResponse(response)
                 }
             )
@@ -178,6 +180,7 @@ class AuthenticationManager: ObservableObject {
                     }
                 },
                 receiveValue: { [weak self] response in
+                    self?.errorMessage = nil
                     self?.handleLoginResponse(response)
                 }
             )

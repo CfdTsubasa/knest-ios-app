@@ -12,13 +12,11 @@ struct User: Codable, Identifiable {
     let username: String
     let email: String
     let displayName: String?
-    let avatarUrl: String?
-    let bio: String?
-    let emotionState: String?
     let birthDate: String?        // 追加: 生年月日 (YYYY-MM-DD形式)
     let prefecture: String?       // 追加: 都道府県
-    let isPremium: Bool
-    let lastActive: String
+    let bio: String?
+    let emotionState: String?
+    let avatarUrl: String?
     let createdAt: String
     let updatedAt: String
     
@@ -29,8 +27,6 @@ struct User: Codable, Identifiable {
         case emotionState = "emotion_state"
         case birthDate = "birth_date"
         case prefecture = "prefecture"
-        case isPremium = "is_premium"
-        case lastActive = "last_active"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
@@ -42,13 +38,11 @@ struct User: Codable, Identifiable {
             username: "sampleuser",
             email: "sample@example.com",
             displayName: "サンプルユーザー",
-            avatarUrl: nil,
-            bio: "サンプルの自己紹介です。",
-            emotionState: "happy",
             birthDate: "1995-06-15",
             prefecture: "東京都",
-            isPremium: false,
-            lastActive: "2025-06-08T00:00:00Z",
+            bio: "サンプルの自己紹介です。",
+            emotionState: "happy",
+            avatarUrl: nil,
             createdAt: "2025-06-08T00:00:00Z",
             updatedAt: "2025-06-08T00:00:00Z"
         )
