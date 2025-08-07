@@ -244,6 +244,8 @@ class MatchingManager: ObservableObject {
                         bio: nil,
                         emotionState: nil,
                         avatarUrl: nil,
+                        isPremium: false,
+                        lastActive: item.circle.updatedAt,
                         createdAt: item.circle.createdAt,
                         updatedAt: item.circle.updatedAt
                     )
@@ -382,6 +384,8 @@ class MatchingManager: ObservableObject {
                 bio: nil,
                 emotionState: nil,
                 avatarUrl: nil,
+                isPremium: false,
+                lastActive: "2025-06-08T12:00:00Z",
                 createdAt: "2025-06-08T12:00:00Z",
                 updatedAt: "2025-06-08T12:00:00Z"
             )
@@ -535,6 +539,8 @@ extension MatchingManager {
                     bio: bio,
                     emotionState: "happy",
                     avatarUrl: nil,
+                    isPremium: false,
+                    lastActive: "2025-06-08T12:00:00Z",
                     createdAt: "2025-06-08T12:00:00Z",
                     updatedAt: "2025-06-08T12:00:00Z"
                 ),

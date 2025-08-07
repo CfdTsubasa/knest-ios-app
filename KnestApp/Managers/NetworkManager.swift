@@ -112,7 +112,7 @@ class NetworkManager: ObservableObject {
                 print("[STATS] データサイズ: \(data.count)バイト")
                 
                 // JSONレスポンスの内容をログ出力（デバッグ用）
-                if endpoint.contains("recommended_circles") {
+                if endpoint.contains("recommended_circles") || endpoint.contains("register") || endpoint.contains("auth") {
                     if let jsonString = String(data: data, encoding: .utf8) {
                         print("[DEBUG] レスポンス内容: \(jsonString)")
                     }
@@ -143,6 +143,13 @@ class NetworkManager: ObservableObject {
                 return data
             }
             .decode(type: responseType, decoder: decoder)
+            .catch { error -> AnyPublisher<T, Error> in
+                print("[ERROR] デコードエラー: \(error)")
+                if let decodingError = error as? DecodingError {
+                    print("[DECODE] デコードエラー詳細: \(decodingError)")
+                }
+                return Fail(error: error).eraseToAnyPublisher()
+            }
             .receive(on: DispatchQueue.main)
             .eraseToAnyPublisher()
     }

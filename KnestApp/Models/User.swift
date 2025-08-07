@@ -17,8 +17,10 @@ struct User: Codable, Identifiable {
     let bio: String?
     let emotionState: String?
     let avatarUrl: String?
-    let createdAt: String
-    let updatedAt: String
+    let isPremium: Bool?          // Bool?のまま（プレミアム機能は今後実装のため）
+    let lastActive: String?       // バックエンドからnullが返される可能性があるためオプショナル
+    let createdAt: String?        // バックエンドからnullが返される可能性があるためオプショナル
+    let updatedAt: String?        // バックエンドからnullが返される可能性があるためオプショナル
     
     enum CodingKeys: String, CodingKey {
         case id, username, email, bio
@@ -27,8 +29,28 @@ struct User: Codable, Identifiable {
         case emotionState = "emotion_state"
         case birthDate = "birth_date"
         case prefecture = "prefecture"
+        case isPremium = "is_premium"
+        case lastActive = "last_active"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+    }
+    
+    // プレミアム会員判定用の計算プロパティ
+    var isValidPremiumUser: Bool {
+        return isPremium ?? false
+    }
+    
+    // 安全な日時フィールドアクセス
+    var safeLastActive: String {
+        return lastActive ?? "未設定"
+    }
+    
+    var safeCreatedAt: String {
+        return createdAt ?? "未設定"
+    }
+    
+    var safeUpdatedAt: String {
+        return updatedAt ?? "未設定"
     }
     
     // プレビュー・テスト用のサンプルデータ
@@ -43,6 +65,8 @@ struct User: Codable, Identifiable {
             bio: "サンプルの自己紹介です。",
             emotionState: "happy",
             avatarUrl: nil,
+            isPremium: false,
+            lastActive: "2025-06-08T00:00:00Z",
             createdAt: "2025-06-08T00:00:00Z",
             updatedAt: "2025-06-08T00:00:00Z"
         )
